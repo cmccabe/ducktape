@@ -216,7 +216,7 @@ class TestRunner(object):
         """Start a test runner client in a subprocess"""
         current_test_counter = self.test_counter
         self.test_counter += 1
-        self._log(logging.INFO, "Triggering test %d of %d..." % (current_test_counter, self.total_tests))
+        self._log(logging.INFO, "WOO3 Triggering test %d of %d..." % (current_test_counter, self.total_tests))
 
         # Test is considered "active" as soon as we start it up in a subprocess
         test_key = TestKey(test_context.test_id, current_test_counter)

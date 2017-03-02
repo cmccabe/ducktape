@@ -150,9 +150,26 @@ class Parametrize(Mark):
         return super(Parametrize, self).__eq__(other) and self.injected_args == other.injected_args
 
 
+class StressTest(Mark):
+    """Marks a test as a stress test."""
+    def __init__(self, **kwargs):
+        self.injected_args = kwargs
+
+    @property
+    def name(self):
+        return "STRESS"
+
+    def apply(self, seed_context, context_list):
+        return context_list
+
+    def __eq__(self, other):
+        return super(StressTest, self).__eq__(other) and self.injected_args == other.injected_args
+
+
 PARAMETRIZED = Parametrize()
 MATRIX = Matrix()
 IGNORE = Ignore()
+STRESS_TEST = StressTest()
 
 
 def _is_parametrize_mark(m):
@@ -305,6 +322,15 @@ def ignore(*args, **kwargs):
         return f
 
     return ignorer
+
+
+def stress_test(*args, **kwargs):
+    # TODO: check for enable_fault, disable_fault methods.
+    def wrapper(f):
+        Mark.mark(f, StressTest(**kwargs))
+        return f
+
+    return wrapper
 
 
 def _inject(*args, **kwargs):
