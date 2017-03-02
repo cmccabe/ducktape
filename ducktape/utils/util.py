@@ -11,6 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import re
+
+from datetime import timedelta
 
 from ducktape import __version__ as __ducktape_version__
 from ducktape.errors import TimeoutError
@@ -48,3 +51,27 @@ def package_is_installed(package_name):
 def ducktape_version():
     """Return string representation of current ducktape version."""
     return __ducktape_version__
+
+duration_regex = re.compile(r'((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?((?P<seconds>\d+?)s)?$')
+seconds_regex = re.compile(r'(?P<seconds>\d+)$')
+
+def parse_duration_string(str):
+    """
+    Parse a duration string in the format '<num_hours>h<num_minutes>m<num_seconds>s.
+
+    For example, 1h would map to 1 hour.
+    1h30m would map to 1 hour, 30 minutes. etc.
+
+    :str:                   The duration string.
+    :returns:               A datetime.timedelta object.
+    """
+    result = duration_regex.match(str)
+    if not result:
+        result = seconds_regex .match(str)
+        if not result:
+            raise ValueError("Unable to parse duration string " + str)
+    p = {}
+    for (name, param) in result.groupdict().iteritems():
+        if param:
+            p[name] = int(param)
+    return timedelta(**p)
