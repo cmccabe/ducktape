@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from ducktape.utils.util import wait_until
+from ducktape.utils.util import wait_until, parse_duration_string
 import time
 
 
@@ -34,3 +34,10 @@ class CheckUtils(object):
             raise Exception("This should have timed out")
         except Exception as e:
             assert e.message == "Hello world"
+
+    def check_wait_until(self):
+        assert 3600 == parse_duration_string("1h").total_seconds()
+        assert 3 == parse_duration_string("3s").total_seconds()
+        assert 3610 == parse_duration_string("1h10s").total_seconds()
+        assert 7439 == parse_duration_string("2h3m59s").total_seconds()
+        assert 14 == parse_duration_string("14").total_seconds()
