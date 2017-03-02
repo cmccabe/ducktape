@@ -186,6 +186,11 @@ def ignored(f):
     return Mark.marked(f, IGNORE)
 
 
+def is_stress_test(f):
+    """Is this function or object decorated with @stress_test?"""
+    return Mark.marked(f, STRESS_TEST)
+
+
 def cartesian_product_dict(d):
     """Return the "cartesian product" of this dictionary's values.
     d is assumed to be a dictionary, where each value in the dict is a list of values
@@ -324,7 +329,7 @@ def ignore(*args, **kwargs):
     return ignorer
 
 
-def stress_test(*args, **kwargs):
+def stress_test(**kwargs):
     # TODO: check for enable_fault, disable_fault methods.
     def wrapper(f):
         Mark.mark(f, StressTest(**kwargs))

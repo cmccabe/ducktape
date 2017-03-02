@@ -22,6 +22,7 @@ import os
 import re
 import requests
 
+from ducktape import mark
 from ducktape.tests.test import Test, TestContext
 from ducktape.mark import parametrized
 from ducktape.mark.mark_expander import MarkedFunctionExpander
@@ -149,9 +150,14 @@ class TestLoader(object):
             test_files = self._find_test_files(path)
         modules_and_files = self._import_modules(test_files)
 
+        # Only expand stress tests when they are specifically requested by class.
+        expand_stress = (len(module_name) > 0)
+        print "WATERMELON discover(directory=%s, module_name=%s, cls_name=%s, method_name=%s, expand_stress=%s)" % \
+              (directory, module_name, cls_name, method_name, expand_stress)
+
         # Find all tests in discovered modules and filter out any that don't match the discovery symbol
         for mf in modules_and_files:
-            test_context_list.extend(self._expand_module(mf))
+            test_context_list.extend(self._expand_module(mf, expand_stress))
         if len(cls_name) > 0:
             test_context_list = filter(lambda t: t.cls_name == cls_name, test_context_list)
         if len(method_name) > 0:
@@ -277,7 +283,7 @@ class TestLoader(object):
 
         return module_and_file_list
 
-    def _expand_module(self, module_and_file):
+    def _expand_module(self, module_and_file, expand_stress):
         """Return a list of TestContext objects, one object for every 'testable unit' in module"""
 
         test_context_list = []
@@ -293,17 +299,19 @@ class TestLoader(object):
                         cluster=self.cluster,
                         module=module.__name__,
                         cls=cls,
-                        file=file_name)))
+                        file=file_name),
+                expand_stress))
 
         return test_context_list
 
-    def _expand_class(self, t_ctx):
+    def _expand_class(self, t_ctx, expand_stress):
         """Return a list of TestContext objects, one object for each method in t_ctx.cls"""
         test_methods = []
         for f_name in dir(t_ctx.cls):
             f = getattr(t_ctx.cls, f_name)
             if self._is_test_function(f):
-                test_methods.append(f)
+                if (not mark.is_stress_test(f)) or expand_stress:
+                    test_methods.append(f)
 
         test_context_list = []
         for f in test_methods:
