@@ -45,7 +45,7 @@ class TestLoader(object):
     """Class used to discover and load tests."""
 
     def __init__(self, session_context, logger, repeat=1, injected_args=None, cluster=None, subset=0, subsets=1,
-                 historical_report=None):
+                 historical_report=None, faults=None):
         self.session_context = session_context
         self.cluster = cluster
         assert logger is not None

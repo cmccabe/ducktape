@@ -68,6 +68,10 @@ def create_ducktape_parser():
                         help="URL of a JSON report file containing stats from a previous test run. If specified, "
                              "this will be used when creating subsets of tests to divide evenly by total run time "
                              "instead of by number of tests.")
+    parser.add_argument("--faults", action="store", type=str,
+                        help="A fault specification in JSON.  See XYZ for information about the format "
+                             "of these files.")
+
     return parser
 
 

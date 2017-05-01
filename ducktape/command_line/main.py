@@ -127,6 +127,13 @@ def main():
             print "parameters are not valid json: " + str(e.message)
             sys.exit(1)
 
+    if args_dict["faults"]:
+        try:
+            faults = json.loads(args_dict["faults"])
+        except ValueError as e:
+            print "faults are not valid json: " + str(e.message)
+            sys.exit(1)
+
     args_dict["globals"] = get_user_defined_globals(args_dict.get("globals"))
 
     # Make .ducktape directory where metadata such as the last used session_id is stored
@@ -147,7 +154,7 @@ def main():
     # Discover and load tests to be run
     extend_import_paths(args_dict["test_path"])
     loader = TestLoader(session_context, session_logger, repeat=args_dict["repeat"], injected_args=injected_args,
-                        subset=args_dict["subset"], subsets=args_dict["subsets"])
+                        subset=args_dict["subset"], subsets=args_dict["subsets"], faults=faults)
     try:
         tests = loader.load(args_dict["test_path"])
     except LoaderException as e:
