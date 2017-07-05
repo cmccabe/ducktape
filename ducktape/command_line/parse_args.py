@@ -105,6 +105,8 @@ def parse_args(args):
 
     parser = create_ducktape_parser()
 
+    print "WATERMELON: ducktape2"
+
     if len(args) == 0:
         # Show help if there are no arguments
         parser.print_help()
