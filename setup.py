@@ -36,7 +36,10 @@ setup(name="ducktape",
       author="Confluent",
       platforms=["any"], 
       entry_points={
-        'console_scripts': ['ducktape=ducktape.command_line.main:main'],
+        'console_scripts': [
+            'ducktape=ducktape.command_line.main:main',
+            'trogdor_agent=ducktape.trogdor.agent.main:main',
+        ],
       },
       license="apache2.0",
       url="http://github.com/confluentinc/ducktape",
