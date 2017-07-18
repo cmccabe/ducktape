@@ -38,7 +38,7 @@ setup(name="ducktape",
       entry_points={
         'console_scripts': [
             'ducktape=ducktape.command_line.main:main',
-            'trogdor_agent=ducktape.trogdor.agent.main:main',
+            'trogdor_agent=ducktape.trogdor.agent.agent:main',
         ],
       },
       license="apache2.0",

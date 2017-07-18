@@ -12,13 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 
-from ducktape.trogdor.agent.options import parse_options
+class Log(object):
+    TRACE = "TRACE"
 
+    DEBUG = "DEBUG"
 
-def main():
-    """trogdor_agent entry point. The top-level logic for the fault injection agent."""
-    options = parse_options(sys.argv[1:])
-    print "Running trogdor agent with %s" % str(options)
-    sys.exit(0)
+    INFO = "INFO"
+
+    WARN = "WARN"
+
+    def __init__(self):
+        pass
+
+    def log(self, level, msg):
+        raise NotImplemented
+
+    def trace(self, msg):
+        self.log(Log.TRACE, msg)
+
+    def debug(self, msg):
+        self.log(Log.DEBUG, msg)
+
+    def info(self, msg):
+        self.log(Log.INFO, msg)
+
+    def warn(self, msg):
+        self.log(Log.WARN, msg)
+
+    def close(self):
+        raise NotImplemented

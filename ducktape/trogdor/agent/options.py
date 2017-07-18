@@ -17,12 +17,6 @@ import argparse
 
 def parse_options(args):
     """ Create an Options object from an array of command-line arguments. """
-    parser = argparse.ArgumentParser(description=
-        "The agent process for the Trogdor fault injection system.")
-    parser.add_argument("--port", action="store", type=int, default=8888,
-        help="The control port to use.")
-    opts = parser.parse_args(args)
-    return Options(opts.port)
 
 
 class Options(object):
