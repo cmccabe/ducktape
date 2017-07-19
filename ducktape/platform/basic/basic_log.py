@@ -11,13 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os
-from datetime import datetime
-
-import signal
 
 from ducktape.platform.log import Log
 
+from datetime import datetime
+from dateutil.tz import tzlocal
+import os
+import signal
 
 class BasicLog(Log):
     def __init__(self, file_name):
@@ -27,7 +27,7 @@ class BasicLog(Log):
         signal.signal(signal.SIGTERM, self.handle_signal)
 
     def log(self, level, msg):
-        datestr = "{:%B %d, %Y}".format(datetime.now())
+        datestr = "{:%FT%T%z}".format(datetime.now(tzlocal()))
         self.fp.write("%s [%s]: %s\n" % (level, datestr, msg))
         self.fp.flush()
 

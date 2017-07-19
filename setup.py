@@ -45,7 +45,7 @@ setup(name="ducktape",
       url="http://github.com/confluentinc/ducktape",
       packages=find_packages(),
       package_data={'ducktape': ['templates/report/*']},
-      install_requires=['jinja2', 'requests', 'paramiko', 'pysistence', 'pyzmq'],
+      install_requires=['jinja2', 'requests', 'paramiko', 'pysistence', 'pyzmq', 'python-dateutil'],
       tests_require=['pytest', 'mock', 'psutil==4.1.0', 'memory_profiler==0.41', 'statistics', 'requests-testadapter'],
       cmdclass={'test': PyTest},
       )

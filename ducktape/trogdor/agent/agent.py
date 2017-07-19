@@ -16,6 +16,9 @@ import BaseHTTPServer
 import argparse
 import os
 import sys
+
+from datetime import datetime
+from dateutil.tz import tzlocal
 from ducktape.platform.platform import create_platform, default_platform
 
 
@@ -32,27 +35,36 @@ class AgentOptions(object):
 
 
 class AgentHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
-    def __init__(self, agent):
-        self.agent = agent
+    agent = None
 
-    def do_HEAD(s):
-        s.send_response(200)
-        s.send_header("Content-type", "text/html")
-        s.end_headers()
+    def do_HEAD(self):
+        self.do_GET()
 
-    def do_GET(s):
-        s.send_response(200)
-        s.send_header("Content-type", "text/html")
-        s.end_headers()
-        s.wfile.write("<html><head><title>Title goes here.</title></head>")
-        s.wfile.write("<body><p>This is a test.</p>")
-        s.wfile.write("<p>You accessed path: %s</p>" % s.path)
-        s.wfile.write("</body></html>")
+    def do_GET(self):
+        p = self.path.strip('/')
+        if p == "status":
+           self.send_str_response(200, self.agent.get_status())
+        else:
+            self.send_str_response(404, "Unknown path %s\n" % self.path)
 
+    def do_PUT(self):
+        p = self.path.strip('/')
+        if p == "shutdown":
+            self.send_str_response(200, '{"status": "success"}\n')
+            self.agent.shutdown()
+        else:
+            self.send_str_response(404, "Unknown path %s\n" % self.path)
+
+    def send_str_response(self, status, str):
+        self.send_response(status)
+        self.send_header("Content-type", "text/html")
+        self.end_headers()
+        self.wfile.write(str)
 
 class Agent(object):
     def __init__(self, plat, opts):
         self.plat = plat
+        self.log = plat.log
         self.opts = opts
         self.double_log("Launching trogdor agent %d with options: %s and platform: %s" %
                         (os.getpid(), opts, plat.name()))
@@ -64,6 +76,8 @@ class Agent(object):
 
     def run(self):
         """ Run the Trogdor agent. """
+        self.start_time = datetime.now(tzlocal())
+        AgentHttpHandler.agent = self
         self.httpd = BaseHTTPServer.HTTPServer(server_address=('', self.opts.port),
                                                RequestHandlerClass=AgentHttpHandler)
         try:
@@ -73,6 +87,14 @@ class Agent(object):
         finally:
             self.httpd.server_close()
         self.double_log("Stopping trogdor agent")
+
+    def shutdown(self):
+        self.log.info("Shutting down %d by request." % os.getpid())
+        os._exit(0)
+
+    def get_status(self):
+        start_time_str = "{:%FT%T%z}".format(self.start_time)
+        return '{"started": "%s"}\n' % start_time_str
 
 
 def main():
