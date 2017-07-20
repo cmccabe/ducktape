@@ -1,0 +1,1 @@
+./tests/docker/ducker-ak down && ./tests/docker/ducker-ak up --custom-ducktape /home/cmccabe/src/confluentinc/ducktape2/  -n 2 && ./tests/docker/ducker-ak ssh ducker01 trogdor_agent --config_file /opt/kafka-dev/trogdor_agent.cfg

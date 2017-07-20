@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import traceback
+
 from datetime import datetime, time
 from dateutil.tz import tzlocal
 from threading import Thread
@@ -21,6 +21,7 @@ import json
 import os
 import sys
 import threading
+import traceback
 
 from ducktape.platform.platform import create_platform
 from ducktape.utils.daemonize import daemonize
