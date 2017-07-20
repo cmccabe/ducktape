@@ -12,44 +12,65 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import ConfigParser
 from ducktape.platform.basic.basic_log import BasicLog
-from ducktape.platform.platform import Platform
+from ducktape.platform.platform import Platform, Fault, Node
+
+import json
 
 
-def create_platform(config_file):
-    config = BasicPlatformConfig(config_file)
-    return BasicPlatform(config)
+def create_platform(config_path):
+    with open(config_path) as fp:
+        data = json.load(fp)
+    log_path = "/dev/stdout"
+    log_data = data.get("log")
+    if log_data != None:
+        if log_data.get("path") != None:
+            log_path = log_data.get("path")
+    log = BasicLog(log_path)
+    if data.get("nodes") == None:
+        raise RuntimeError("No 'nodes' stanza was defined in '%s'" % config_path)
+    name_to_node = {}
+    nodes_data = data.get("nodes")
+    for node_name in nodes_data.keys():
+        node_data = nodes_data[node_name]
+        if node_data.get("hostname") == None:
+            raise RuntimeError("No 'hostname' given for node '%s'" % node_name)
+        name_to_node[node_name] = BasicNode(node_name, node_data["hostname"], node_data.get("agent_port"))
+    return BasicPlatform(log, name_to_node)
 
-#externally_routable_ip
-#ssh_config
-#host
-#hostname
-#identityfile
-#password
-#port
-#user
 
-class BasicPlatformConfig(object):
-    def __init__(self, config_file):
-        parser = ConfigParser.ConfigParser()
-        with open(config_file, 'r') as input_file:
-            parser.readfp(input_file)
-        self.log_path = parser.get("log", "path")
+class BasicNode(Node):
+    """ A node inside a basic platform topology. """
+    def __init__(self, name, hostname, agent_port):
+        """
+        Create a BasicNode.
+        :param name:        A string identifying the node.
+        :param hostname:    The hostname of the node.
+        :param port:        The port of the node.
+        """
+        super(BasicNode, self).__init__(name, agent_port)
+        self.hostname = hostname
 
 
 class BasicPlatform(Platform):
     """
     Implements the basic platform.
-
     In this platform, we assume:
     * we can ssh into nodes based on their names.
     * we can invoke iptables to create network partitions
     """
+    def __init__(self, log, nodes):
+        """
+        Initialize the BasicPlatform object.
+        :param log:         A ducktape.platform.Log object.
+        :param nodes:       A map from strings to lists of ducktape.platform.Node objects.
+        """
+        super(BasicPlatform, self).__init__("BasicPlatform", log, nodes)
 
-    def __init__(self, config):
-        super(BasicPlatform, self).__init__()
-        self.log = BasicLog(config.log_path)
-
-    def name(self):
-        return "BasicPlatform"
+    def create_fault(self, start_time_ms, end_time_ms, spec):
+        """
+        Create a new fault object.  This does not activate the fault.
+        :param type:        The type of fault.
+        :param info:        A map containing fault info.
+        """
+        return Fault(start_time_ms, end_time_ms, spec)

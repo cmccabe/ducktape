@@ -48,3 +48,9 @@ def package_is_installed(package_name):
 def ducktape_version():
     """Return string representation of current ducktape version."""
     return __ducktape_version__
+
+
+def check_port_number(port):
+    port = int(port)
+    if (port < 0) or (port > 65535):
+        raise RuntimeError("Invalid port %d for node %s" % (port, name))
