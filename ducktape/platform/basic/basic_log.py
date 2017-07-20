@@ -37,14 +37,15 @@ class BasicLog(Log):
         self.fp = open(file_name, 'a+')
         self.lock = threading.Lock()
         self.read_fd, self.write_fd = os.pipe()
-        self.prev_signal_handlers = {}
-        self.prev_signal_handlers[signal.SIGINT] = signal.signal(signal.SIGINT, self.handle_signal)
-        self.prev_signal_handlers[signal.SIGTERM] = signal.signal(signal.SIGTERM, self.handle_signal)
-        self.prev_excepthook = sys.excepthook
-        sys.excepthook = self.excepthook
         self.signal_handler_thread = threading.Thread(target=self._signal_handler_thread)
         self.signal_handler_thread.setDaemon(True)
         self.signal_handler_thread.start()
+        sys.excepthook = self._excepthook
+        self.prev_signal_handlers = {}
+        self.prev_signal_handlers[signal.SIGINT] = signal.signal(signal.SIGINT, self._handle_signal)
+        self.prev_signal_handlers[signal.SIGTERM] = signal.signal(signal.SIGTERM, self._handle_signal)
+        self.prev_signal_handlers[signal.SIGUSR1] = signal.signal(signal.SIGUSR1, self._handle_signal)
+        self.prev_excepthook = sys.excepthook
 
     def log(self, level, msg):
         datestr = "{:%FT%T%z}".format(datetime.now(tzlocal()))
@@ -56,24 +57,42 @@ class BasicLog(Log):
             self.lock.release()
 
     def _signal_handler_thread(self):
-        signum = os.read(self.read_fd, 1)
-        if (signum != chr(0)):
-            self.warn("Shutting down %d on signal %d" % (os.getpid(), ord(signum)))
+        try:
+            while True:
+                signum = os.read(self.read_fd, 1)
+                if signum == chr(0):
+                    return
+                elif signum == chr(signal.SIGUSR1):
+                    self._log_thread_traces()
+                else:
+                    self.warn("Shutting down %d on signal %d" % (os.getpid(), ord(signum)))
+                    os._exit(1)
+        except Exception as e:
+            self.warn("_signal_handler_thread error: %s" % str(e))
             os._exit(1)
 
-    def handle_signal(self, signum, frame):
+    def _log_thread_traces(self):
+        self.info("================ BEGIN STACK TRACES ================")
+        for thread_id, stack in sys._current_frames().items():
+            self.info("Thread %s" % str(thread_id))
+            for file_name, line_num, name, line in traceback.extract_stack(stack):
+                self.info('  %s, line %d, %s' % (file_name, line_num, name))
+            self.info("")
+        self.info("================= END STACK TRACES =================")
+
+    def _handle_signal(self, signum, frame):
         # Since this function is a signal handler, we're very limited in what we can do.
         # So we simply write the signal number to a pipe, to wake up the signal handler thread.
         os.write(self.write_fd, chr(signum))
 
-    def excepthook(self, *info):
+    def _excepthook(self, *info):
         text = "".join(traceback.format_exception(*info))
         self.warn("Uncaught exception: %s" % text)
         os._exit(1)
 
     def close(self):
-        signal.signal(signal.SIGINT, self.prev_signal_handlers[signal.SIGINT])
-        signal.signal(signal.SIGINT, self.prev_signal_handlers[signal.SIGTERM])
+        for signum, prev_handler in self.prev_signal_handlers:
+            signal.signal(signum, prev_handler)
         os.write(self.write_fd, chr(0))
         self.signal_handler_thread.join()
         self.write_fd.close()

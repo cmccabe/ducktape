@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
+from datetime import datetime, time
 from dateutil.tz import tzlocal
 from threading import Thread
 import BaseHTTPServer
@@ -84,27 +84,32 @@ class AgentHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.do_GET()
 
     def do_GET(self):
-        if p == "/status":
-           self.send_str_response(200, self.agent.get_status())
-        elif p == "/faults":
-            self.send_str_response(200, self.agent.get_faults())
-        else:
-            self.send_str_response(404, "Unknown path %s\n" % self.path)
+        try:
+            self.agent.log.trace("Processing HEAD/GET %s" % self.path)
+            if self.path == "/status":
+               self.send_str_response(200, self.agent.get_status())
+            elif self.path == "/faults":
+                self.send_str_response(200, self.agent.get_faults())
+            else:
+                self.send_str_response(404, "Unknown path %s\n" % self.path)
+        except Exception as e:
+            values = { 'error': str(e) }
+            self.send_str_response(400, json.dumps(values))
 
     def do_PUT(self):
-        p = self.path.strip('/')
-        if p == "/shutdown":
-            self.send_str_response(200, '{}\n')
-            self.agent.shutdown()
-        elif p == "/faults":
-            try:
+        try:
+            self.agent.log.trace("Processing PUT %s" % self.path)
+            if self.path == "/shutdown":
+                self.agent.shutdown()
+                self.send_str_response(200, '{}\n')
+            elif self.path == "/faults":
                 self.agent.add_fault_from_json(self.command)
                 self.send_str_response(200, '{}\n')
-            except Exception as e:
-                values = { 'error': str(e) }
-                self.send_str_response(400, json.dumps(values))
-        else:
-            self.send_str_response(404, "Unknown path %s\n" % self.path)
+            else:
+                self.send_str_response(404, "Unknown path %s\n" % self.path)
+        except Exception as e:
+            values = { 'error': str(e) }
+            self.send_str_response(400, json.dumps(values))
 
     def send_str_response(self, status, str):
         self.send_response(status)
@@ -122,17 +127,16 @@ class Agent(object):
         # A condition variable used to wake the fault handler thread.
         self.cond = threading.Condition(lock=self.lock)
 
-        # True only if we are shutting down.  Protected by the lock.
-        self.shutdown = False
+        # True only if we are closing.  Protected by the lock.
+        self.closing = False
 
         # A list of platform.Fault objects.  Protected by the lock.
         self.faults = []
 
-    def start(self):
+    def serve_forever(self):
         """ Run the Trogdor agent. """
         self.start_time = datetime.now(tzlocal())
         self.fault_thread = Thread(target=self._run_fault_thread)
-        self.fault_thread.daemon = True
         self.fault_thread.start()
         AgentHttpHandler.agent = self
         self.log.info("Starting agent...")
@@ -147,20 +151,23 @@ class Agent(object):
             while True:
                 self.lock.acquire()
                 try:
-                    if (self.shutdown):
+                    if (self.closing):
                         return
+                    self.cond.wait(1)
                 finally:
                     self.lock.release()
+        except Exception as e:
+            self.log.info("_run_fault_thread exiting with error %s" % str(e))
         finally:
             self.httpd.shutdown()
 
     def shutdown(self):
         self.lock.acquire()
         try:
-            if (self.shutdown == True):
+            if (self.closing == True):
                 return
             self.log.info("Shutting down %d by request." % os.getpid())
-            self.shutdown = True
+            self.closing = True
             self.cond.notify_all()
         finally:
             self.lock.release()
@@ -247,4 +254,4 @@ def main():
     print msg
     platform.log.info(msg)
     agent = Agent(platform, node.agent_port)
-    agent.start()
+    agent.serve_forever()
