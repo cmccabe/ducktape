@@ -11,8 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import socket
 import sys
 import traceback
+
+import errno
 
 from ducktape.platform.log import Log
 
@@ -56,10 +59,24 @@ class BasicLog(Log):
         finally:
             self.lock.release()
 
+    def _retry_on_eintr(self, func):
+        """
+        Retry a function call until we succeed or get an error other than EINTR.
+        """
+        while True:
+            try:
+                return func()
+            except socket.error, e:
+                if e.errno != errno.EINTR:
+                    raise
+
     def _signal_handler_thread(self):
+        """
+        The main body of the signal handler thread.
+        """
         try:
             while True:
-                signum = os.read(self.read_fd, 1)
+                signum = self._retry_on_eintr(lambda: os.read(self.read_fd, 1))
                 if signum == chr(0):
                     return
                 elif signum == chr(signal.SIGUSR1):
@@ -72,6 +89,9 @@ class BasicLog(Log):
             os._exit(1)
 
     def _log_thread_traces(self):
+        """
+        Log a full stack trace for every thread.
+        """
         self.info("================ BEGIN STACK TRACES ================")
         for thread_id, stack in sys._current_frames().items():
             self.info("Thread %s" % str(thread_id))
@@ -81,9 +101,13 @@ class BasicLog(Log):
         self.info("================= END STACK TRACES =================")
 
     def _handle_signal(self, signum, frame):
-        # Since this function is a signal handler, we're very limited in what we can do.
-        # So we simply write the signal number to a pipe, to wake up the signal handler thread.
-        os.write(self.write_fd, chr(signum))
+        """
+        Handle an incoming signal.
+
+        Since this function is a signal handler, we're very limited in what we can do.
+        So we simply write the signal number to a pipe, to wake up the signal handler thread.
+        """
+        self._retry_on_eintr(lambda: os.write(self.write_fd, chr(signum)))
 
     def _excepthook(self, *info):
         text = "".join(traceback.format_exception(*info))
