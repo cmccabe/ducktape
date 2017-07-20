@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import traceback
 from datetime import datetime, time
 from dateutil.tz import tzlocal
 from threading import Thread
@@ -85,37 +85,50 @@ class AgentHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            self.agent.log.trace("Processing HEAD/GET %s" % self.path)
             if self.path == "/status":
-               self.send_str_response(200, self.agent.get_status())
+               self._send_success_response(200, self.agent.get_status())
             elif self.path == "/faults":
-                self.send_str_response(200, self.agent.get_faults())
+                self._send_success_response(200, self.agent.get_faults())
             else:
-                self.send_str_response(404, "Unknown path %s\n" % self.path)
+                self._send_success_response(404, "Unknown path %s\n" % self.path)
         except Exception as e:
-            values = { 'error': str(e) }
-            self.send_str_response(400, json.dumps(values))
+            self._send_error_response(e)
 
     def do_PUT(self):
         try:
-            self.agent.log.trace("Processing PUT %s" % self.path)
             if self.path == "/shutdown":
                 self.agent.shutdown()
-                self.send_str_response(200, '{}\n')
+                self._send_success_response(200, '{}\n')
             elif self.path == "/faults":
-                self.agent.add_fault_from_json(self.command)
-                self.send_str_response(200, '{}\n')
+                text = self.rfile.read(int(self.headers.getheader('content-length', 0)))
+                self.agent.log.info("PUT /faults.  text='%s'" % text)
+                self.agent.add_fault_from_json(text)
+                self._send_success_response(200, '{}\n')
             else:
-                self.send_str_response(404, "Unknown path %s\n" % self.path)
+                self._send_success_response(404, "Unknown path %s\n" % self.path)
         except Exception as e:
-            values = { 'error': str(e) }
-            self.send_str_response(400, json.dumps(values))
+            self._send_error_response(e)
 
-    def send_str_response(self, status, str):
-        self.send_response(status)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
-        self.wfile.write(str)
+    def _send_success_response(self, status, str):
+        self.agent.log.trace("HTTP %s %s: status %d: %s" %
+                             (self.command, self.path, status, str.strip('\n')))
+        self._send_response(status, str)
+
+    def _send_error_response(self, e):
+        _, _, tb = sys.exc_info()
+        err = str(e) + "\n" + "".join(traceback.format_tb(tb))
+        self.agent.log.warn("HTTP %s %s: status %d: %s" % (self.command, self.path, 400, err))
+        values = { 'error': str(e) }
+        self._send_response(400, json.dumps(values))
+
+    def _send_response(self, status, str):
+        try:
+            self.send_response(status)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+            self.wfile.write(str)
+        except Exception as e:
+            self.agent.log.warn("Error sending response to %s %s: %s" % (self.command, self.path, str(e)))
 
 class Agent(object):
     def __init__(self, platform, port):
@@ -178,7 +191,7 @@ class Agent(object):
 
     def get_faults(self):
         def _fault_to_dict(fault):
-            dict = []
+            dict = {}
             dict["active"] = fault.is_active()
             dict["start_time_ms"] = fault.start_time_ms
             dict["end_time_ms"] = fault.end_time_ms
