@@ -25,6 +25,8 @@ import os
 import signal
 import threading
 
+from ducktape.utils import util
+
 
 class BasicLog(Log):
     """
@@ -51,13 +53,13 @@ class BasicLog(Log):
         self.prev_excepthook = sys.excepthook
 
     def log(self, level, msg):
-        datestr = "{:%FT%T%z}".format(datetime.now(tzlocal()))
+        datestr = util.wall_clock_ms_to_str(util.get_wall_clock_ms())
         self.lock.acquire()
         try:
-            self.fp.write("%s [%s]: %s\n" % (level, datestr, msg))
-            self.fp.flush()
+            self.fp.write("%-5s [%s]: %s\n" % (level, datestr, msg))
         finally:
             self.lock.release()
+        self.fp.flush()
 
     def _retry_on_eintr(self, func):
         """
