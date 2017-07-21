@@ -21,6 +21,12 @@ class ClusterSlot(object):
         for k, v in kwargs.items():
             setattr(self, k, v)
 
+    def hostname(self):
+        return self.account.hostname
+
+    def name(self):
+        return self.account.hostname
+
 
 class Cluster(object):
     """ Interface for a cluster -- a collection of nodes with login credentials.
