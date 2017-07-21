@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime, time
-from dateutil.tz import tzlocal
 from threading import Thread
 import BaseHTTPServer
 import argparse
