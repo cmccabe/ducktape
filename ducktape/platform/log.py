@@ -26,19 +26,48 @@ class Log(object):
         pass
 
     def log(self, level, msg):
+        """
+        Log a message.
+
+        :param level:           The log level.
+        :param msg:             The message string.
+        """
         raise NotImplemented
 
     def trace(self, msg):
+        """
+        Log a message at TRACE level.
+
+        :param msg:             The message string.
+        """
         self.log(Log.TRACE, msg)
 
     def debug(self, msg):
+        """
+        Log a message at DEBUG level.
+
+        :param msg:             The message string.
+        """
         self.log(Log.DEBUG, msg)
 
     def info(self, msg):
+        """
+        Log a message at INFO level.
+
+        :param msg:             The message string.
+        """
         self.log(Log.INFO, msg)
 
     def warn(self, msg):
+        """
+        Log a message at WARN level.
+
+        :param msg:             The message string.
+        """
         self.log(Log.WARN, msg)
 
     def close(self):
+        """
+        Close the log.
+        """
         raise NotImplemented
