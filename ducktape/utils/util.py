@@ -13,6 +13,10 @@
 # limitations under the License.
 from math import floor
 
+from datetime import datetime
+
+from dateutil.tz import tzlocal
+
 from ducktape import __version__ as __ducktape_version__
 from ducktape.errors import TimeoutError
 
@@ -71,6 +75,9 @@ def get_wall_clock_ms():
     return long(floor(time.time() * 1000))
 
 
+LOCAL_TZ=tzlocal()
+
+
 def wall_clock_ms_to_str(t):
     """
     Convert a wall-clock time in milliseconds to a human-readable time.
@@ -78,4 +85,5 @@ def wall_clock_ms_to_str(t):
     :arg t:         A long representing the wall-clock time in milliseconds.
     :return:        A human-readable date string.
     """
-    return time.strftime('%FT%T%z', time.localtime(t / 1000.0))
+    ts = datetime.fromtimestamp(t / 1000.0, tz=LOCAL_TZ)
+    return ts.strftime('%FT%T%z')
