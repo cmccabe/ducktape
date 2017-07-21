@@ -55,6 +55,12 @@ class Fault(object):
         self.spec = spec
         self.active = False
 
+    def get_start_time_ms(self):
+        return self.start_time_ms
+
+    def get_end_time_ms(self):
+        return self.end_time_ms
+
     def start(self):
         """
         Activate the fault.

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime, time
+from datetime import datetime
 from dateutil.tz import tzlocal
 from threading import Thread
 import BaseHTTPServer
@@ -23,7 +23,7 @@ import sys
 import threading
 import traceback
 
-from ducktape.platform.platform import create_platform
+from ducktape.platform.platform import create_platform, Fault
 from ducktape.utils.daemonize import daemonize
 
 
@@ -131,6 +131,46 @@ class AgentHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         except Exception as e:
             self.agent.log.warn("Error sending response to %s %s: %s" % (self.command, self.path, str(e)))
 
+
+class FaultSet(object):
+    def __init__(self):
+        self.faults_by_start_time = []
+        self.faults_by_end_time = []
+
+    def first_fault_to_start(self):
+        """
+        Return the first fault by start time order.
+        """
+        if len(self.faults_by_start_time) == 0:
+            return None
+        return self.faults_by_start_time[0]
+
+    def first_fault_to_end(self):
+        """
+        Return the first fault by end time order.
+        """
+        if len(self.faults_by_end_time) == 0:
+            return None
+        return self.faults_by_end_time[0]
+
+    def add_fault(self, fault):
+        self.faults_by_start_time.append(fault)
+        self.faults_by_end_time.append(fault)
+        self.faults_by_start_time = sorted(self.faults_by_start_time, key=Fault.get_start_time_ms)
+        self.faults_by_end_time = sorted(self.faults_by_end_time, key=Fault.get_end_time_ms)
+
+
+def fault_set_in_start_time_order(set):
+    """
+    A generator which returns the faults in a FaultSet by start time order.
+    :param set:
+    :return:
+    """
+    faults_by_start_time = set.faults_by_start_time
+    for fault in faults_by_start_time:
+        yield fault
+
+
 class Agent(object):
     def __init__(self, platform, port):
         self.platform = platform
@@ -144,8 +184,8 @@ class Agent(object):
         # True only if we are closing.  Protected by the lock.
         self.closing = False
 
-        # A list of platform.Fault objects.  Protected by the lock.
-        self.faults = []
+        # The set of platform.Fault objects.  Protected by the lock.
+        self.faults = FaultSet()
 
     def serve_forever(self):
         """ Run the Trogdor agent. """
@@ -202,7 +242,7 @@ class Agent(object):
         self.lock.acquire()
         try:
             out = []
-            for fault in self.faults:
+            for fault in fault_set_in_start_time_order(self.faults):
                 out.append(_fault_to_dict(fault))
         finally:
             self.lock.release()
@@ -212,7 +252,7 @@ class Agent(object):
         fault = self._create_fault_from_json(text)
         self.lock.acquire()
         try:
-            self.faults.append(fault)
+            self.faults.add_fault(fault)
         finally:
             self.lock.release()
 
