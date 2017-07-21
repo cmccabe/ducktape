@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
+from datetime import datetime, time
 from dateutil.tz import tzlocal
 from threading import Thread
 import BaseHTTPServer
@@ -23,7 +23,9 @@ import sys
 import threading
 import traceback
 
-from ducktape.platform.platform import create_platform, Fault
+from ducktape.platform.fault import Fault
+from ducktape.platform.platform import create_platform
+from ducktape.utils import util
 from ducktape.utils.daemonize import daemonize
 
 
@@ -47,7 +49,9 @@ class AgentHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
               {
                 "active": True|False,
                 "start_time_ms": <scheduled start time in milliseconds>,
+                    or "start_time_ms_delta": <scheduled start time delta in ms>
                 "end_time_ms": <scheduled end time in milliseconds>,
+                    or "duration_ms": <scheduled duration in ms>
                 "spec": {
                   "type": <fault type>
                   <any other data for this fault type>
@@ -129,7 +133,8 @@ class AgentHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(str)
         except Exception as e:
-            self.agent.log.warn("Error sending response to %s %s: %s" % (self.command, self.path, str(e)))
+            self.agent.log.warn("Error sending response to %s %s: %s" %
+                                (self.command, self.path, traceback.format_exc()))
 
 
 class FaultSet(object):
@@ -163,11 +168,18 @@ class FaultSet(object):
 def fault_set_in_start_time_order(set):
     """
     A generator which returns the faults in a FaultSet by start time order.
-    :param set:
-    :return:
     """
     faults_by_start_time = set.faults_by_start_time
     for fault in faults_by_start_time:
+        yield fault
+
+
+def fault_set_in_end_time_order(set):
+    """
+    A generator which returns the faults in a FaultSet by end time order.
+    """
+    faults_by_end_time = set.faults_by_end_time
+    for fault in faults_by_end_time:
         yield fault
 
 
@@ -189,7 +201,7 @@ class Agent(object):
 
     def serve_forever(self):
         """ Run the Trogdor agent. """
-        self.start_time = datetime.now(tzlocal())
+        self.start_time_ms = util.get_wall_clock_ms()
         self.fault_thread = Thread(target=self._run_fault_thread)
         self.fault_thread.start()
         AgentHttpHandler.agent = self
@@ -200,20 +212,60 @@ class Agent(object):
         self.fault_thread.join()
         self.log.info("Stopping trogdor agent")
 
+    def get_faults_to_start(self, now):
+        next_wakeup = now + 360000
+        to_start = []
+        for fault in fault_set_in_start_time_order(self.faults):
+            if fault.start_time_ms > now:
+                next_wakeup = fault.start_time_ms
+                break
+            if not fault.is_active():
+                if fault.end_time_ms < now:
+                    to_start.append(fault)
+        return to_start, next_wakeup
+
+    def get_faults_to_end(self, now):
+        next_wakeup = now + 360000
+        to_end = []
+        for fault in fault_set_in_end_time_order(self.faults):
+            if fault.end_time_ms > now:
+                next_wakeup = fault.end_time_ms
+                break
+            if (fault.start_time_ms < now) or fault.is_active():
+                to_end.append(fault)
+        return to_end, next_wakeup
+
     def _run_fault_thread(self):
         try:
             while True:
+                now = util.get_wall_clock_ms()
+                self.lock.acquire()
+                try:
+                    to_start, next_wakeup = self.get_faults_to_start(now)
+                    to_end, next_wakeup2 = self.get_faults_to_end(now)
+                finally:
+                    self.lock.release()
+                next_wakeup = min(next_wakeup, next_wakeup2)
+                for fault in to_start:
+                    fault.start()
+                for fault in to_end:
+                    fault.end()
                 self.lock.acquire()
                 try:
                     if (self.closing):
                         return
-                    self.cond.wait(1)
+                    delta = next_wakeup - now
+                    self.log.info("waiting for %d ms" % delta)
+                    self.cond.wait(delta / 1000.0)
                 finally:
                     self.lock.release()
         except Exception as e:
-            self.log.info("_run_fault_thread exiting with error %s" % str(e))
+            self.log.warn("_run_fault_thread exiting with error %s" % traceback.format_exc())
         finally:
             self.httpd.shutdown()
+            for fault in fault_set_in_start_time_order(self.faults):
+                if fault.is_active():
+                    fault.end()
 
     def shutdown(self):
         self.lock.acquire()
@@ -227,7 +279,9 @@ class Agent(object):
             self.lock.release()
 
     def get_status(self):
-        values = { 'started': "{:%FT%T%z}".format(self.start_time) }
+        values = { 'started_time_ms': self.start_time_ms,
+                   'started_time_str': util.wall_clock_ms_to_str(self.start_time_ms)
+                 }
         return json.dumps(values)
 
     def get_faults(self):
@@ -253,6 +307,7 @@ class Agent(object):
         self.lock.acquire()
         try:
             self.faults.add_fault(fault)
+            self.cond.notify_all()
         finally:
             self.lock.release()
 
@@ -260,23 +315,41 @@ class Agent(object):
         return self._create_fault_from_dict(json.loads(text))
 
     def _create_fault_from_dict(self, dict):
-        def _must_get(dict, key):
-            if dict.get(key) is None:
-                raise RuntimeError("Failed to set %s" % key)
-            rval = dict[key]
+        def _pop_long(dict, key):
+            value = dict.get(key)
+            if value is None:
+                return None
             del dict[key]
-            return rval
+            return long(value)
 
-        def _must_get_int(dict, key):
-            return int(_must_get(dict, key))
+        def _pop(dict, key):
+            value = dict.get(key)
+            if value is None:
+                return None
+            del dict[key]
+            return value
 
-        start_time_ms = _must_get_int(dict, "start_time_ms")
-        end_time_ms = _must_get_int(dict, "end_time_ms")
-        spec = _must_get(dict, "spec")
+        start_time_ms = _pop_long(dict, "start_time_ms")
+        if (start_time_ms == None):
+            start_time_ms_delta = _pop_long(dict, "start_time_ms_delta")
+            if (start_time_ms_delta == None):
+                raise RuntimeError("You must supply one of {start_time_ms, start_time_ms_delta}")
+            start_time_ms = util.get_wall_clock_ms() + start_time_ms_delta
+
+        end_time_ms =  _pop_long(dict, "end_time_ms")
+        if (end_time_ms == None):
+            duration_ms = _pop_long(dict, "duration_ms")
+            if (duration_ms == None):
+                raise RuntimeError("You must supply one of {end_time_ms, duration_ms}")
+            end_time_ms = start_time_ms + duration_ms
+
+        spec = _pop(dict, "spec")
         if spec == None:
             raise RuntimeError("No fault spec given.")
+
         if len(dict) != 0:
             raise RuntimeError("Unknown keys %s" % (dict.keys()))
+
         return self.platform.create_fault(start_time_ms, end_time_ms, spec)
 
 

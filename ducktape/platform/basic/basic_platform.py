@@ -13,7 +13,8 @@
 # limitations under the License.
 
 from ducktape.platform.basic.basic_log import BasicLog
-from ducktape.platform.platform import Platform, Fault, Node
+from ducktape.platform.fault import NoOpFault, Fault
+from ducktape.platform.platform import Platform, Node
 
 import json
 
@@ -44,6 +45,7 @@ class BasicNode(Node):
     def __init__(self, name, hostname, agent_port):
         """
         Create a BasicNode.
+
         :param name:        A string identifying the node.
         :param hostname:    The hostname of the node.
         :param port:        The port of the node.
@@ -62,6 +64,7 @@ class BasicPlatform(Platform):
     def __init__(self, log, nodes):
         """
         Initialize the BasicPlatform object.
+
         :param log:         A ducktape.platform.Log object.
         :param nodes:       A map from strings to lists of ducktape.platform.Node objects.
         """
@@ -70,7 +73,15 @@ class BasicPlatform(Platform):
     def create_fault(self, start_time_ms, end_time_ms, spec):
         """
         Create a new fault object.  This does not activate the fault.
-        :param type:        The type of fault.
-        :param info:        A map containing fault info.
+
+        :param start_time_ms:   The fault start time.
+        :param end_time_ms:     The fault end time.
+        :param spec:            The fault spec dictionary.
         """
-        return Fault(start_time_ms, end_time_ms, spec)
+        fault_type = spec.get("type")
+        if fault_type == None:
+            raise RuntimeError("No fault type given in fault spec")
+        if fault_type == NoOpFault.TYPE:
+            return NoOpFault(self.log, start_time_ms, end_time_ms, spec)
+        else:
+            raise RuntimeError("%s does not implement fault type '%s'" % (str(self), fault_type))

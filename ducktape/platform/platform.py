@@ -40,46 +40,6 @@ class Node(object):
         self.agent_port = agent_port
 
 
-class Fault(object):
-    """ A fault. """
-    def __init__(self, start_time_ms, end_time_ms, spec):
-        """
-        Create a new fault.
-
-        :param start_time_ms:           The scheduled start time in ms
-        :param end_time_ms:             The scheduled end time in ms
-        :param spec:                    A dictionary containing the spec.
-        """
-        self.start_time_ms = start_time_ms
-        self.end_time_ms = end_time_ms
-        self.spec = spec
-        self.active = False
-
-    def get_start_time_ms(self):
-        return self.start_time_ms
-
-    def get_end_time_ms(self):
-        return self.end_time_ms
-
-    def start(self):
-        """
-        Activate the fault.
-        """
-        self.active = True
-
-    def end(self):
-        """
-        Deactivate the fault.
-        """
-        self.active = False
-
-    def is_active(self):
-        """
-        Return true if the fault is active.
-        """
-        return self.active
-
-
 class Platform(object):
     """ The platform we are running on. """
     def __init__(self, name, log, name_to_node):
@@ -103,3 +63,6 @@ class Platform(object):
         :param info:        A map containing fault info.
         """
         raise NotImplemented
+
+    def __str__(self):
+        return self.name
