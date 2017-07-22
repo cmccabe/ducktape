@@ -117,10 +117,10 @@ class BasicLog(Log):
         os._exit(1)
 
     def close(self):
-        for signum, prev_handler in self.prev_signal_handlers:
+        for signum, prev_handler in self.prev_signal_handlers.iteritems():
             signal.signal(signum, prev_handler)
         os.write(self.write_fd, chr(0))
         self.signal_handler_thread.join()
-        self.write_fd.close()
-        self.read_fd.close()
+        os.close(self.write_fd)
+        os.close(self.read_fd)
         self.fp.close()
