@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from ducktape.utils import util
 
 
 class Log(object):
@@ -71,3 +72,32 @@ class Log(object):
         Close the log.
         """
         raise NotImplemented
+
+
+class NullLog(Log):
+    """
+    A Log that discards all output.
+    """
+    def __init__(self):
+        super(NullLog, self).__init__()
+
+    def log(self, level, msg):
+        pass
+
+    def close(self):
+        pass
+
+
+class StdoutLog(Log):
+    """
+    A Log that prints to stdout.
+    """
+    def __init__(self):
+        super(StdoutLog, self).__init__()
+
+    def log(self, level, msg):
+        datestr = util.wall_clock_ms_to_str(util.get_wall_clock_ms())
+        print ("%-5s [%s]: %s" % (level, datestr, msg))
+
+    def close(self):
+        pass
