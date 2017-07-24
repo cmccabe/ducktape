@@ -215,11 +215,9 @@ class Agent(object):
         to_start = []
         for fault in fault_set_in_start_time_order(self.faults):
             if fault.start_time_ms > now:
-                self.log.trace("Not ready to start %s (start_time = %d, now = %d)" % (str(fault), fault.start_time_ms, now))
                 next_wakeup = fault.start_time_ms
                 break
             if not fault.is_active():
-                self.log.trace("Starting %s (start_time = %d, now = %d)" % (str(fault), fault.start_time_ms, now))
                 to_start.append(fault)
         return to_start, next_wakeup
 
@@ -228,11 +226,9 @@ class Agent(object):
         to_end = []
         for fault in fault_set_in_end_time_order(self.faults):
             if fault.end_time_ms > now:
-                self.log.trace("Not ready to end %s (end_time_ms = %d, now = %d)" % (str(fault), fault.end_time_ms, now))
                 next_wakeup = fault.end_time_ms
                 break
             if (fault.start_time_ms < now) or fault.is_active():
-                self.log.trace("Scheduling fault %s for end (end_time_ms = %d, now = %d)" % (str(fault), fault.end_time_ms, now))
                 to_end.append(fault)
         return to_end, next_wakeup
 
