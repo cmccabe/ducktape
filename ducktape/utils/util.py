@@ -11,17 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from math import floor
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
+import dateutil
+import pytz
 from dateutil.tz import tzlocal
+from math import floor
+import importlib
+import re
+import time
 
 from ducktape import __version__ as __ducktape_version__
 from ducktape.errors import TimeoutError
-
-import importlib
-import time
 
 
 def wait_until(condition, timeout_sec, backoff_sec=.1, err_msg=""):
@@ -86,4 +88,58 @@ def wall_clock_ms_to_str(t):
     :return:        A human-readable date string.
     """
     ts = datetime.fromtimestamp(t / 1000.0, tz=LOCAL_TZ)
-    return ts.strftime('%FT%T%z')
+    return ts.strftime('%Y-%m-%dT%H:%M:%S%z')
+
+
+#def str_to_wall_clock_ms(s):
+#    """
+#    Convert a wall-clock string into a time in milliseconds since the epoch.
+#
+#    :arg t:         A long representing the wall-clock time in milliseconds.
+#    :return:        A human-readable date string.
+#    """
+#    s = s.strip()
+#    print "WATERMELON: s = '%s', s[-5] = '%s'" % (s, s[-5])
+#    if s[-5] == "-":
+#        body_str = s[:-5]
+#        hour_offset = int(s[-4:-2])
+#        minute_offset = int(s[-2:])
+#    elif s[-5] == "+":
+#        body_str = s[:-5]
+#        hour_offset = -int(s[-4:-2])
+#        minute_offset = -int(s[-2:])
+#    else:
+#        raise RuntimeError("No +HHMM or -HHMM timezone offset found at the end.")
+#    print "body_str = %s, hour_offset = %d, minute_offset = %d" % (body_str, hour_offset, minute_offset)
+#    t = datetime.strptime(body_str, '%Y-%m-%dT%H:%M:%S')
+#    t = t.replace(tzinfo=pytz.utc)
+#    count = time.mktime(t.utctimetuple())
+#    #count = count + (minute_offset * 60.0) + (hour_offset * 3600.0)
+#    #count = long(floor(count * 1000.0))
+#    return count
+
+
+duration_regex = re.compile(r'((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?((?P<seconds>\d+?)s)?$')
+seconds_regex = re.compile(r'(?P<seconds>\d+)$')
+
+
+def parse_duration_string(str):
+    """
+    Parse a duration string in the format '<num_hours>h<num_minutes>m<num_seconds>s.
+
+    For example, 1h would map to 1 hour.
+    1h30m would map to 1 hour, 30 minutes. etc.
+
+    :str:                   The duration string.
+    :returns:               A datetime.timedelta object.
+    """
+    result = duration_regex.match(str)
+    if not result:
+        result = seconds_regex .match(str)
+        if not result:
+            raise ValueError("Unable to parse duration string " + str)
+    p = {}
+    for (name, param) in result.groupdict().iteritems():
+        if param:
+            p[name] = int(param)
+    return timedelta(**p)

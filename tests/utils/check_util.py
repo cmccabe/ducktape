@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from ducktape.utils.util import wait_until
+from ducktape.utils.util import wait_until, parse_duration_string, get_wall_clock_ms, wall_clock_ms_to_str
 import time
 
 
@@ -34,3 +34,25 @@ class CheckUtils(object):
             raise Exception("This should have timed out")
         except Exception as e:
             assert e.message == "Hello world"
+
+    def check_parse_duration_string(self):
+        assert 3600 == parse_duration_string("1h").total_seconds()
+        assert 3 == parse_duration_string("3s").total_seconds()
+        assert 3610 == parse_duration_string("1h10s").total_seconds()
+        assert 7439 == parse_duration_string("2h3m59s").total_seconds()
+        assert 14 == parse_duration_string("14").total_seconds()
+
+    def check_get_wall_clock_ms(self):
+        ending_ms = starting_ms = get_wall_clock_ms()
+        while ending_ms <= starting_ms:
+            ending_ms = get_wall_clock_ms()
+
+#    def check_wall_clock_ms_to_str(self):
+#        wall_clock_ms = str_to_wall_clock_ms("2017-07-24T20:51:56+0000")
+#        print "wall_clock_ms = %s" % str(wall_clock_ms)
+#        #wall_clock_ms = str_to_wall_clock_ms("2017-07-24T13:32:08-0700")
+#        #print "wall_clock_ms = %s" % str(wall_clock_ms)
+#        #str = wall_clock_ms_to_str(wall_clock_ms)
+#        #t2 = str_to_wall_clock_ms(str)
+#        #assert t == t2
+#
