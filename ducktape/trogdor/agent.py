@@ -58,14 +58,15 @@ class AgentHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
               ...
             ]
 
-    PUT /faults         Return a list of all the current faults.
+    PUT /faults         Create a new fault.
         Request:
             [
               {
-                "start_time_ms": <scheduled start time in milliseconds>,
-                "end_time_ms": <scheduled end time in milliseconds>,
                 "spec": {
+                  "id": <fault-id>,
                   "type": <fault type>
+                  "start_time_ms": <scheduled start time in milliseconds>,
+                  "duration_ms": <scheduled duration in milliseconds>,
                   <any other data for this fault type>
                 }
               },

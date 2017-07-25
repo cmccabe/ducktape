@@ -22,47 +22,85 @@ def create_platform(config_path):
     """ Create a platform object from a package name. """
     with open(config_path) as fp:
         data = json.load(fp)
+    module_paths = data.get("modules")
+    if module_paths is None:
+        module_paths = [ "ducktape.platform.fault.fault_spec",
+                         "ducktape.basic_platform.basic_platform" ]
+    loaders = [ Loader(module_path) for module_path in module_paths ]
     platform_package = data.get("platform")
     if platform_package == None:
-        raise RuntimeError("No 'platform' was configured in '%s'" % config_path)
-    elif platform_package == "basic":
-        platform_package = "ducktape.platform.basic.basic_platform"
-    module = importlib.import_module(platform_package)
-    return module.create_platform(config_path)
-
-
-class Node(object):
-    """ A node inside a platform topology. """
-    def __init__(self, name, agent_port):
-        self.name = name
-        if agent_port is not None:
-            util.check_port_number(agent_port)
-        self.agent_port = agent_port
+        platform_package = "BasicPlatform"
+    for loader in loaders:
+        platform = loader.create(name, class_name, FaultSpec.__class__, dict)
+        if platform is not None:
+            return platform
+    loader_paths = [ loader.module_path for loader in loaders ]
+    raise RuntimeError("Failed to resolve platform type '%s' in %s" %
+                       (class_name, ",".join(loader_paths)))
 
 
 class Platform(object):
     """ The platform we are running on. """
-    def __init__(self, name, log, name_to_node):
+    def __init__(self, name, log, topology, loaders):
         """
         Initialize the platform object.
-        :param name:                    A string identifying the platform.
-        :param log:                     A platform.Log object.
-        :param name_to_node:            Maps node names to platform.Node objects.
+        :param name:        A string identifying the platform.
+        :param log:         A platform.Log object.
+        :param topology:    A platform.Topology object.
+        :param loaders:     A list of platform.Loader objects for loading classes.
         """
         self.name = name
         self.log = log
-        self.name_to_node = name_to_node
+        self.topology = topology
+        self.loaders = loaders
 
-    def node_names(self):
-        return self.names_to_nodes.keys().sorted()
+    def create_fault_spec_from_json(self, text):
+        """
+        Create a new fault specification object from a JSON string.
 
-    def create_fault(self, start_time_ms, end_time_ms, spec):
+        :param text:        The JSON string
+        :return:            The new fault specification object.
+        """
+        return self.create_fault_spec_from_dict(json.loads(text))
+
+    def create_fault_spec_from_dict(self, dict):
+        """
+        Create a new fault specification object from a dictionary.
+
+        :param dict:        The dictionary.
+        :return:            The new fault specification object.
+        """
+        kind = dict.get("kind")
+        if kind is None:
+            raise RuntimeError("The fault specification does not include a 'kind'.")
+        class_name = "%sSpec" % kind
+        for loader in self.loaders:
+            fault_spec = loader.create(name, class_name, FaultSpec.__class__, dict)
+            if fault_spec is not None:
+                return fault_spec
+        loader_paths = [ loader.module_path for loader in self.loaders ]
+        raise RuntimeError("Failed to resolve fault spec type '%s' in %s" %
+                           (class_name, ",".join(loader_paths)))
+
+    def create_fault(self, name, start_ms, duration_ms, spec):
         """
         Create a new fault object.  This does not activate the fault.
-        :param type:        The type of fault.
-        :param info:        A map containing fault info.
+
+        :param name:        The fault name.
+        :param start_ms:    The start time in milliseconds.
+        :param duration_ms: The duration in milliseconds.
+        :param spec:        The fault spec object.
+        :return:            The new fault object.
         """
-        raise NotImplemented
+        class_name = spec.kind
+        for loader in self.loaders:
+            fault = loader.create(name, class_name, Fault.__class__,
+                                  start_ms=start_ms, duration_ms=duration_ms, spec=spec)
+            if fault is not None:
+                return fault
+        loader_paths = [ loader.module_path for loader in self.loaders ]
+        raise RuntimeError("Failed to resolve fault type '%s' in %s" %
+                           (class_name, ",".join(loader_paths)))
 
     def __str__(self):
         return self.name

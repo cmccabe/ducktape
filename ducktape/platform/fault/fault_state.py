@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ducktape.platform.node import Node
+PENDING = "pending"
 
+ACTIVE = "active"
 
+FINISHED = "finished"

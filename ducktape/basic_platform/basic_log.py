@@ -11,20 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import socket
-import sys
-import traceback
 
 import errno
-
-from ducktape.platform.log import Log
-
-from datetime import datetime
-from dateutil.tz import tzlocal
 import os
 import signal
+import socket
+import sys
 import threading
+import traceback
 
+from ducktape.platform.log import Log
 from ducktape.utils import util
 
 
