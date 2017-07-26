@@ -18,6 +18,7 @@ import json
 from ducktape.basic_platform.basic_log import BasicLog
 from ducktape.basic_platform.basic_topology import BasicNode
 from ducktape.platform.platform import Platform
+from ducktape.platform.topology import Topology
 
 
 def _get_optional_int(dict, key):
@@ -63,14 +64,14 @@ def create_platform(config_path, loaders):
             name_to_node[node_name] = BasicNode(node_name, trogdor_agent_port,
                                                 trogdor_coordinator_port, tags,
                                                 node_data["hostname"])
-        platform = BasicPlatform(log, name_to_node, loaders)
+        topology = Topology(name_to_node)
+        platform = BasicPlatform(log, topology, loaders)
         success = True
         return platform
     finally:
         if not success:
             if log is not None:
                 log.close()
-                log = None
 
 
 class BasicPlatform(Platform):

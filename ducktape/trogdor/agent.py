@@ -373,10 +373,9 @@ def main():
     if (node == None):
         raise RuntimeError("No configuration found for node %s.  Configured " +
                            "node names: %s" % (name, platform.node_names()))
-    if node.agent_port is None:
+    if node.trogdor_agent_port is None:
         raise RuntimeError("No agent_port specified for node %s" % name)
-    msg = "Launching trogdor agent %d with port %d" % (os.getpid(), node.agent_port)
-    print msg
-    platform.log.info(msg)
-    agent = Agent(platform, node.agent_port)
+    platform.log.info("Launching trogdor agent %d with port %d" %
+                      (os.getpid(), node.trogdor_agent_port))
+    agent = Agent(platform, node.trogdor_agent_port)
     agent.serve_forever()
