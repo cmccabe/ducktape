@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import ducktape.platform.fault.fault_state
+
 
 class Fault(object):
     """
@@ -27,12 +29,12 @@ class Fault(object):
         """
         self.name = name
         self.spec = spec
-        self.state = fault_state.PENDING 
+        self.state = fault_state.PENDING
 
-    def start_time_ms(self):
+    def get_start_time_ms(self):
         return self.spec.start_time_ms
 
-    def end_time_ms(self):
+    def get_end_time_ms(self):
         return self.spec.end_time_ms()
 
     def start(self):

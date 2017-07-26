@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ducktape.platform.basic.basic_log import BasicLog
-from ducktape.platform.fault import NoOpFault, Fault
-from ducktape.platform.platform import Platform, Node
 
 import json
+
+from ducktape.basic_platform.basic_log import BasicLog
+from ducktape.basic_platform.basic_topology import BasicNode
+from ducktape.platform.platform import Platform
 
 
 def _get_optional_int(dict, key):
@@ -36,7 +37,7 @@ def _get_optional_str_list(dict, key):
     return rval
 
 
-def create_platform(config_path):
+def create_platform(config_path, loaders):
     log = None
     success = False
     try:
@@ -58,11 +59,11 @@ def create_platform(config_path):
                 raise RuntimeError("No 'hostname' given for node '%s'" % node_name)
             trogdor_agent_port = _get_optional_int(node_data, "trogdor_agent_port")
             trogdor_coordinator_port = _get_optional_int(node_data, "trogdor_coordinator_port")
-            tags = _get_optional_str_list(node_data, "tags"):
+            tags = _get_optional_str_list(node_data, "tags")
             name_to_node[node_name] = BasicNode(node_name, trogdor_agent_port,
                                                 trogdor_coordinator_port, tags,
                                                 node_data["hostname"])
-        platform = BasicPlatform(log, name_to_node)
+        platform = BasicPlatform(log, name_to_node, loaders)
         success = True
         return platform
     finally:
@@ -86,21 +87,4 @@ class BasicPlatform(Platform):
         :param log:         A ducktape.platform.Log object.
         :param nodes:       A map from strings to lists of ducktape.platform.Node objects.
         """
-        super(BasicPlatform, self).__init__("BasicPlatform", log, nodes)
-
-    def create_fault(self, name, spec):
-        """
-        Create a new fault object.
-
-        :param name:            The fault name.
-        :param spec:            The fault spec.
-        """
-        spec.kind
-
-        fault_type = spec.get("type")
-        if fault_type == None:
-            raise RuntimeError("No fault type given in fault spec")
-        if fault_type == NoOpFault.TYPE:
-            return NoOpFault(self.log, start_time_ms, end_time_ms, spec)
-        else:
-            raise RuntimeError("%s does not implement fault type '%s'" % (str(self), fault_type))
+        super(BasicPlatform, self).__init__("BasicPlatform", log, topology, loaders)

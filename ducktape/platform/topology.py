@@ -34,7 +34,7 @@ class Topology(object):
         """
         Return a sorted list of all node names.
         """
-        return name_to_node.keys().sorted()
+        return self.name_to_node.keys().sorted()
 
     def get_node(self, name):
         return self.name_to_node.get(name)

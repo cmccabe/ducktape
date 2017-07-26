@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ducktape.platform.node import Node
+from ducktape.platform.topology import Node
 
 
 class BasicNode(Node):

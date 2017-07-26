@@ -12,22 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import importlib
+import pkgutil
+from types import ModuleType, MethodType, FunctionType
+
 
 class Loader(object):
     """
-    Dynamically loads python objects.
+    Dynamically loads python objects from packages.
     """
 
-    def __init__(self, module_path):
+    def __init__(self, package_name):
         """
         Create a new Loader.
 
-        :param module_path: The python module to attempt to load classes from.
+        :param module_path: The python package to attempt to load classes from.
         """
-        self.module_path = module_path
-        self.module = importlib.import_module(platform_package)
+        self.package_name = package_name
+        self.package = importlib.import_module(package_name)
+        print "WATERMELON type(package) = %s" % type(self.package)
 
-    def create(self, class_name, superclass, **kwargs)
+    def create(self, class_name, superclass, **kwargs):
         """
         Create a new object.
 
@@ -37,28 +42,63 @@ class Loader(object):
 
         :return:            None if we could not find the class; the new object otherwise.
         """
-        c = getattr(module, class_name)
-        if c is None:
-            return None:
-        if not issubclass(c, superclass):
-            raise RuntimeError("Loader: %s.%s is not a subclass of %s." %
-                               (self.module_path, class_name, superclass))
-        return c(**kwargs)
+        for m in dir(self.package):
+            module = getattr(self.package, m)
+            if type(module) == ModuleType:
+                for c in dir(module):
+                    cls = getattr(module, c)
+                    if issubclass(cls, superclass):
+                        if cls.__name__ == class_name:
+                            return cls(**kwargs)
+        return None
 
-    def invoke(self, func, **kwargs)
+    def invoke(self, module_name, function_name, **kwargs):
         """
         Invoke a function.
 
-        :param class_name:  The class name to load.
-        :param superclass:  A class which the new object should inherit from.
-        :param kwargs:      The arguments to use when creating the new object.
+        :param module_name:     The module name.
+        :param function_name:   The function name to invoke.
+        :param kwargs:          The arguments to use when invoking the function.
 
-        :return:            None if we could not find the class; the new object otherwise.
+        :return:                None if we could not find the function; the function
+                                result otherwise.
         """
-        c = getattr(module, class_name)
-        if c is None:
-            return None:
-        if not issubclass(c, superclass):
-            raise RuntimeError("Loader: %s.%s is not a subclass of %s." %
-                               (self.module_path, class_name, superclass))
-        return c(**kwargs)
+        loader = pkgutil.get_loader(self.package_name)
+        print "WATERMELON2: package_name=%s, loader.filename=%s" % (self.package_name, loader.filename)
+        for module_loader, name, is_package in pkgutil.walk_packages([loader.filename]):
+            full_name = self.package_name + "." + name
+            module = importlib.import_module(full_name)
+            #print "WATERMELON3: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
+            if hasattr(module, function_name):
+                print "WATERMELON4: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
+                element = getattr(module, function_name)
+                print "WATERMELON5: type(element) = %s" % type(element)
+                if type(element) == FunctionType:
+                    print "WATERMELON5: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
+                    return element(**kwargs)
+        return None
+#            for element_name in dir(module):
+#                element = getattr(module, element_name)
+#                print "WATERMELON4: full_name=%s, element_name=%s, type(element)=%s" % (full_name, element_name, type(element))
+            #for element in dir(mymodule):
+            #print("WATERMELON3: %s" % qname)
+
+
+#        print "WATERMELON Loader(package_name=%s) invoke" % self.package_name
+#        def _trim_leading_components(s):
+#            period_idx = s.rfind(".")
+#            return s[period_idx+1:]
+#
+#        for m in dir(self.package):
+#            module = getattr(self.package, m)
+#            if not type(module) == ModuleType:
+#                print "found non-module %s.  type == %s" % (module, type(module))
+#            if type(module) == ModuleType:
+#                print "found module %s.  module.__name__ = %s" % (module, _trim_leading_components(module.__name__))
+#                if module.__name__ == module_name:
+#                    for c in dir(module):
+#                        f = getattr(module, c)
+#                        if type(f) == MethodType:
+#                            if f.__name__ == function_name:
+#                                return f(**kwargs)
+

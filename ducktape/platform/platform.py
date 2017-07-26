@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import importlib
 import json
 
-from ducktape.utils import util
+from ducktape.platform.fault.fault import Fault
+from ducktape.platform.fault.fault_spec import FaultSpec
+from ducktape.platform.loader import Loader
 
 
 def create_platform(config_path):
@@ -24,19 +25,19 @@ def create_platform(config_path):
         data = json.load(fp)
     module_paths = data.get("modules")
     if module_paths is None:
-        module_paths = [ "ducktape.platform.fault.fault_spec",
-                         "ducktape.basic_platform.basic_platform" ]
+        #module_paths = [ "ducktape.platform.fault", "ducktape.basic_platform" ]
+        module_paths = [ "ducktape.basic_platform" ]
     loaders = [ Loader(module_path) for module_path in module_paths ]
-    platform_package = data.get("platform")
-    if platform_package == None:
-        platform_package = "BasicPlatform"
+    platform_module = data.get("platform")
+    if platform_module == None:
+        platform_module = "basic_platform"
     for loader in loaders:
-        platform = loader.create(name, class_name, FaultSpec.__class__, dict)
+        platform = loader.invoke(platform_module, "create_platform", config_path=config_path, loaders=loaders)
         if platform is not None:
             return platform
-    loader_paths = [ loader.module_path for loader in loaders ]
-    raise RuntimeError("Failed to resolve platform type '%s' in %s" %
-                       (class_name, ",".join(loader_paths)))
+    loader_paths = [ loader.package_name for loader in loaders ]
+    raise RuntimeError("Failed to find platform type '%s' in %s" %
+                       (platform_module, ", ".join(loader_paths)))
 
 
 class Platform(object):
@@ -75,10 +76,10 @@ class Platform(object):
             raise RuntimeError("The fault specification does not include a 'kind'.")
         class_name = "%sSpec" % kind
         for loader in self.loaders:
-            fault_spec = loader.create(name, class_name, FaultSpec.__class__, dict)
+            fault_spec = loader.create(class_name, class_name, FaultSpec.__class__, dict)
             if fault_spec is not None:
                 return fault_spec
-        loader_paths = [ loader.module_path for loader in self.loaders ]
+        loader_paths = [ loader.package_name for loader in self.loaders ]
         raise RuntimeError("Failed to resolve fault spec type '%s' in %s" %
                            (class_name, ",".join(loader_paths)))
 
@@ -98,7 +99,7 @@ class Platform(object):
                                   start_ms=start_ms, duration_ms=duration_ms, spec=spec)
             if fault is not None:
                 return fault
-        loader_paths = [ loader.module_path for loader in self.loaders ]
+        loader_paths = [ loader.package_name for loader in self.loaders ]
         raise RuntimeError("Failed to resolve fault type '%s' in %s" %
                            (class_name, ",".join(loader_paths)))
 

@@ -21,7 +21,7 @@ import sys
 import threading
 import traceback
 
-from ducktape.platform.fault import Fault
+from ducktape.platform.fault.fault import Fault
 from ducktape.platform.platform import create_platform
 from ducktape.utils import util
 from ducktape.utils.daemonize import daemonize
@@ -369,7 +369,7 @@ def main():
         daemonize()
     platform = create_platform(parsed_args["config"])
     name = parsed_args["name"]
-    node = platform.name_to_node.get(name)
+    node = platform.topology.name_to_node.get(name)
     if (node == None):
         raise RuntimeError("No configuration found for node %s.  Configured " +
                            "node names: %s" % (name, platform.node_names()))
