@@ -14,7 +14,7 @@
 
 import importlib
 import pkgutil
-from types import ModuleType, MethodType, FunctionType, ClassType, TypeType
+from types import FunctionType, TypeType
 
 
 class Loader(object):
@@ -29,8 +29,6 @@ class Loader(object):
         :param module_path: The python package to attempt to load classes from.
         """
         self.package_name = package_name
-        self.package = importlib.import_module(package_name)
-        print "WATERMELON type(package) = %s" % type(self.package)
 
     def create(self, class_name, superclass, **kwargs):
         """
@@ -43,17 +41,12 @@ class Loader(object):
         :return:            None if we could not find the class; the new object otherwise.
         """
         loader = pkgutil.get_loader(self.package_name)
-        print "WATERMELON2: package_name=%s, loader.filename=%s" % (self.package_name, loader.filename)
         for module_loader, name, is_package in pkgutil.walk_packages([loader.filename]):
             full_name = self.package_name + "." + name
             module = importlib.import_module(full_name)
-            #print "WATERMELON3: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
             if hasattr(module, class_name):
-                print "WATERMELON4: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
                 element = getattr(module, class_name)
-                print "WATERMELON5: type(element) = %s" % type(element)
                 if type(element) == TypeType:
-                    print "WATERMELON5: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
                     return element(**kwargs)
         return None
 
@@ -69,42 +62,12 @@ class Loader(object):
                                 result otherwise.
         """
         loader = pkgutil.get_loader(self.package_name)
-        print "WATERMELON2: package_name=%s, loader.filename=%s" % (self.package_name, loader.filename)
         for module_loader, name, is_package in pkgutil.walk_packages([loader.filename]):
             if name == module_name:
                 full_name = self.package_name + "." + name
                 module = importlib.import_module(full_name)
-                #print "WATERMELON3: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
                 if hasattr(module, function_name):
-                    print "WATERMELON4: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
                     element = getattr(module, function_name)
-                    print "WATERMELON5: type(element) = %s" % type(element)
                     if type(element) == FunctionType:
-                        print "WATERMELON5: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
                         return element(**kwargs)
         return None
-#            for element_name in dir(module):
-#                element = getattr(module, element_name)
-#                print "WATERMELON4: full_name=%s, element_name=%s, type(element)=%s" % (full_name, element_name, type(element))
-            #for element in dir(mymodule):
-            #print("WATERMELON3: %s" % qname)
-
-
-#        print "WATERMELON Loader(package_name=%s) invoke" % self.package_name
-#        def _trim_leading_components(s):
-#            period_idx = s.rfind(".")
-#            return s[period_idx+1:]
-#
-#        for m in dir(self.package):
-#            module = getattr(self.package, m)
-#            if not type(module) == ModuleType:
-#                print "found non-module %s.  type == %s" % (module, type(module))
-#            if type(module) == ModuleType:
-#                print "found module %s.  module.__name__ = %s" % (module, _trim_leading_components(module.__name__))
-#                if module.__name__ == module_name:
-#                    for c in dir(module):
-#                        f = getattr(module, c)
-#                        if type(f) == MethodType:
-#                            if f.__name__ == function_name:
-#                                return f(**kwargs)
-

@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from ducktape.cluster import json
+from ducktape.platform.fault.fault import Fault
+
 
 class FaultSpec(object):
     """
@@ -39,6 +42,15 @@ class FaultSpec(object):
 
     def to_json(self):
         return json.dumps(self)
+
+    def to_fault(self, name, loaders):
+        for loader in loaders:
+            platform = loader.create(self.kind, Fault.__class__, name=name, spec=self)
+            if platform is not None:
+                return platform
+        loader_packages = [ loader.package_name for loader in loaders ]
+        raise RuntimeError("Failed to find fault type '%s' in %s" %
+                           (self.kind, ", ".join(loader_packages)))
 
 
 class NoOpFaultSpec(FaultSpec):

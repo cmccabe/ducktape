@@ -14,7 +14,6 @@
 
 import json
 
-from ducktape.platform.fault.fault import Fault
 from ducktape.platform.fault.fault_spec import FaultSpec
 from ducktape.platform.loader import Loader
 
@@ -34,9 +33,9 @@ def create_platform(config_path):
         platform = loader.invoke(platform_module, "create_platform", config_path=config_path, loaders=loaders)
         if platform is not None:
             return platform
-    loader_paths = [ loader.package_name for loader in loaders ]
+    loader_packages = [ loader.package_name for loader in loaders ]
     raise RuntimeError("Failed to find platform type '%s' in %s" %
-                       (platform_module, ", ".join(loader_paths)))
+                       (platform_module, ", ".join(loader_packages)))
 
 
 class Platform(object):
@@ -78,29 +77,19 @@ class Platform(object):
             fault_spec = loader.create(class_name, class_name, FaultSpec.__class__, dict)
             if fault_spec is not None:
                 return fault_spec
-        loader_paths = [ loader.package_name for loader in self.loaders ]
+        loader_packages = [ loader.package_name for loader in self.loaders ]
         raise RuntimeError("Failed to resolve fault spec type '%s' in %s" %
-                           (class_name, ",".join(loader_paths)))
+                           (class_name, ",".join(loader_packages)))
 
-    def create_fault(self, name, start_ms, duration_ms, spec):
+    def create_fault(self, name, spec):
         """
         Create a new fault object.  This does not activate the fault.
 
         :param name:        The fault name.
-        :param start_ms:    The start time in milliseconds.
-        :param duration_ms: The duration in milliseconds.
         :param spec:        The fault spec object.
         :return:            The new fault object.
         """
-        class_name = spec.kind
-        for loader in self.loaders:
-            fault = loader.create(name, class_name, Fault.__class__,
-                                  start_ms=start_ms, duration_ms=duration_ms, spec=spec)
-            if fault is not None:
-                return fault
-        loader_paths = [ loader.package_name for loader in self.loaders ]
-        raise RuntimeError("Failed to resolve fault type '%s' in %s" %
-                           (class_name, ",".join(loader_paths)))
+        return spec.to_fault(name, self.loaders)
 
     def __str__(self):
         return self.name

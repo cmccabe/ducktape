@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import ducktape.platform.fault.fault_state
+from ducktape.platform.fault import fault_state
 
 
 class Fault(object):

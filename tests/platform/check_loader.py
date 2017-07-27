@@ -26,10 +26,10 @@ class LoaderExampleDerived(LoaderExampleBase):
         self.foo = foo
 
 class CheckLoader(object):
-#    def check_loader_invoke(self):
-#        loader = Loader("tests.platform")
-#        result = loader.invoke("check_loader", "append_abracadabra", prefix="123")
-#        assert result == "123abracadabra"
+    def check_loader_invoke(self):
+        loader = Loader("tests.platform")
+        result = loader.invoke("check_loader", "append_abracadabra", prefix="123")
+        assert result == "123abracadabra"
 
     def check_loader_create(self):
         loader = Loader("tests.platform")
