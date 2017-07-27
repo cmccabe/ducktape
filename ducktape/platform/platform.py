@@ -74,7 +74,7 @@ class Platform(object):
             raise RuntimeError("The fault specification does not include a 'kind'.")
         class_name = "%sSpec" % kind
         for loader in self.loaders:
-            fault_spec = loader.create(class_name, class_name, FaultSpec.__class__, dict)
+            fault_spec = loader.create(class_name, FaultSpec, args=dict)
             if fault_spec is not None:
                 return fault_spec
         loader_packages = [ loader.package_name for loader in self.loaders ]
@@ -89,7 +89,7 @@ class Platform(object):
         :param spec:        The fault spec object.
         :return:            The new fault object.
         """
-        return spec.to_fault(name, self.loaders)
+        return spec.to_fault(name, self.log, self.loaders)
 
     def __str__(self):
         return self.name

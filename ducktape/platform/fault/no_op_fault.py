@@ -13,6 +13,15 @@
 # limitations under the License.
 
 from ducktape.platform.fault.fault import Fault
+from ducktape.platform.fault.fault_spec import FaultSpec
+
+
+class NoOpFaultSpec(FaultSpec):
+    """
+    The specification for a NoOpFault.
+    """
+    def __init__(self, args):
+        super(NoOpFaultSpec, self).__init__(args)
 
 
 class NoOpFault(Fault):
@@ -20,8 +29,8 @@ class NoOpFault(Fault):
     A fault which has no effect.
     """
 
-    def __init__(self, name, spec):
-        super(NoOpFault).__init__(name, spec)
+    def __init__(self, name, log, spec):
+        super(NoOpFault, self).__init__(name, log, spec)
 
     def _activate(self):
         pass

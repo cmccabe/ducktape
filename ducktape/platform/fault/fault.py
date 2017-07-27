@@ -20,7 +20,7 @@ class Fault(object):
     The base class for a Fault.
     """
 
-    def __init__(self, name, spec):
+    def __init__(self, name, log, spec):
         """
         Create a Fault.
 
@@ -28,14 +28,27 @@ class Fault(object):
         :param spec:            A fault_spec.FaultSpec object describing this fault.
         """
         self.name = name
+        self.log = log
         self.spec = spec
         self.state = fault_state.PENDING
 
-    def get_start_time_ms(self):
-        return self.spec.start_time_ms
+    @property
+    def start_ms(self):
+        return self.spec.start_ms
 
-    def get_end_time_ms(self):
-        return self.spec.end_time_ms()
+    @property
+    def duration_ms(self):
+        return self.spec.duration_ms
+
+    @property
+    def end_ms(self):
+        return self.spec.end_ms
+
+    def is_pending(self):
+        return self.state == fault_state.PENDING
+
+    def is_active(self):
+        return self.state == fault_state.ACTIVE
 
     def start(self):
         """

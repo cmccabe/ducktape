@@ -143,3 +143,18 @@ def parse_duration_string(str):
         if param:
             p[name] = int(param)
     return timedelta(**p)
+
+
+def must_pop_str(dict, key, error_msg=None):
+    str = dict.get(key)
+    if str is not None:
+        del dict[key]
+        return str
+    if error_msg is None:
+        raise RuntimeError("Failed to find required key %s" % key)
+    else:
+        raise RuntimeError(error_msg)
+
+def must_pop_long(dict, key, error_msg=None):
+    val = must_pop_str(dict, key, error_msg)
+    return long(val)

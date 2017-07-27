@@ -11,9 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
+import json
 
-from ducktape.cluster import json
 from ducktape.platform.fault.fault import Fault
+from ducktape.utils import util
 
 
 class FaultSpec(object):
@@ -21,7 +23,7 @@ class FaultSpec(object):
     The base class for a specification describing a fault.
     """
 
-    def __init__(self, kind, start_ms, duration_ms):
+    def __init__(self, args):
         """
         Create a new FaultSpec.
 
@@ -29,33 +31,38 @@ class FaultSpec(object):
         :param start_ms:            The start time in ms.
         :param duration_ms:         The duration in ms.
         """
-        self.kind = kind
-        self.start_ms = start_ms
-        self.duration_ms = duration_ms
+        self.kind = util.must_pop_str(args, "kind")
+        self.start_ms = util.must_pop_long(args, "start_ms")
+        self.duration_ms = util.must_pop_long(args, "duration_ms")
 
     @property
-    def end_time_ms(self):
+    def end_ms(self):
         """
         Return the designated end time.
         """
         return self.start_ms + self.duration_ms
 
     def to_json(self):
+        """
+        Convert this FaultSpec to JSON.
+
+        :return:                    A JSON string.
+        """
+        v = self.json_vars()
         return json.dumps(self)
 
-    def to_fault(self, name, loaders):
+    def json_vars(self):
+        """
+        Return the vars that should be used to dump this spec to JSON.
+        This method can be overridden by subclasses if necessary.
+        """
+        return copy.deepcopy(vars(self))
+
+    def to_fault(self, name, log, loaders):
         for loader in loaders:
-            platform = loader.create(self.kind, Fault.__class__, name=name, spec=self)
+            platform = loader.create(self.kind, Fault, log=log, name=name, spec=self)
             if platform is not None:
                 return platform
         loader_packages = [ loader.package_name for loader in loaders ]
         raise RuntimeError("Failed to find fault type '%s' in %s" %
                            (self.kind, ", ".join(loader_packages)))
-
-
-class NoOpFaultSpec(FaultSpec):
-    """
-    The specification for a NoOpFault.
-    """
-    def __init__(self, start_ms, duration_ms):
-        super(FaultSpec, self).__init__("NoOpFault", start_ms, duration_ms)

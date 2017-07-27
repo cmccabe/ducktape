@@ -33,5 +33,5 @@ class CheckLoader(object):
 
     def check_loader_create(self):
         loader = Loader("tests.platform")
-        example = loader.create("LoaderExampleDerived", "LoaderExampleBase", foo="foo")
+        example = loader.create("LoaderExampleDerived", LoaderExampleBase, foo="foo")
         assert example.foo == "foo"

@@ -47,7 +47,8 @@ class Loader(object):
             if hasattr(module, class_name):
                 element = getattr(module, class_name)
                 if type(element) == TypeType:
-                    return element(**kwargs)
+                    if issubclass(element, superclass):
+                        return element(**kwargs)
         return None
 
     def invoke(self, module_name, function_name, **kwargs):

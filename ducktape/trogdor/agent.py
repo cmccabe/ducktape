@@ -37,7 +37,10 @@ class AgentHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         Request:
             <any>
         Response:
-            {"started": <TIMESTAMP>}
+            {
+              "started_time_ms": <timestamp>,
+              "started_time_str": <time-string>
+            }
 
     GET /faults         Return a list of all the current faults.
         Request:
@@ -45,33 +48,19 @@ class AgentHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         Response:
             [
               {
-                "active": True|False,
-                "start_time_ms": <scheduled start time in milliseconds>,
-                    or "start_time_ms_delta": <scheduled start time delta in ms>
-                "end_time_ms": <scheduled end time in milliseconds>,
-                    or "duration_ms": <scheduled duration in ms>
-                "spec": {
-                  "type": <fault type>
-                  <any other data for this fault type>
-                }
+                "name": <fault-name-string>,
+                "spec": <fault-spec>,
+                "status": <fault-status>
               },
               ...
             ]
 
     PUT /faults         Create a new fault.
         Request:
-            [
-              {
-                "spec": {
-                  "id": <fault-id>,
-                  "type": <fault type>
-                  "start_time_ms": <scheduled start time in milliseconds>,
-                  "duration_ms": <scheduled duration in milliseconds>,
-                  <any other data for this fault type>
-                }
-              },
-              ...
-            ]
+            {
+              "name": <fault-name-string>,
+              "spec": <fault-spec>
+            },
         Response:
             On success, {}
             On error, {"error": <error message>}
@@ -81,6 +70,18 @@ class AgentHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             <any>
         Response:
             {}
+
+    REST datatypes:
+
+    fault-spec: {
+            "kind": <fault-kind>,
+            "start_ms": <fault-start-time-in-ms>,
+            "duration_ms": <fault-duration-in-ms>,
+        }
+
+    fault-status: {
+            "state": "pending|active|finished"
+        }
     """
     agent = None
 
@@ -160,8 +161,11 @@ class FaultSet(object):
     def add_fault(self, fault):
         self.faults_by_start_time.append(fault)
         self.faults_by_end_time.append(fault)
-        self.faults_by_start_time = sorted(self.faults_by_start_time, key=Fault.get_start_time_ms)
-        self.faults_by_end_time = sorted(self.faults_by_end_time, key=Fault.get_end_time_ms)
+        self.faults_by_start_time = sorted(self.faults_by_start_time,
+                                           key=Fault.start_ms.__get__)
+        self.faults_by_end_time = sorted(self.faults_by_end_time,
+                                         key=Fault.end_ms.__get__)
+
 
 
 def fault_set_in_start_time_order(set):
@@ -198,27 +202,30 @@ class Agent(object):
         # The set of platform.Fault objects.  Protected by the lock.
         self.faults = FaultSet()
 
-    def serve_forever(self):
+    def start(self):
         """ Run the Trogdor agent. """
         self.start_time_ms = util.get_wall_clock_ms()
-        self.fault_thread = Thread(target=self._run_fault_thread)
-        self.fault_thread.start()
         AgentHttpHandler.agent = self
-        self.log.info("Starting agent...")
         self.httpd = BaseHTTPServer.HTTPServer(server_address=('', self.port),
                                                RequestHandlerClass=AgentHttpHandler)
-        self.httpd.serve_forever()
+        self.log.info("Starting agent...")
+        self.fault_thread = Thread(target=self._run_fault_thread)
+        self.fault_thread.start()
+        self.httpd_thread = Thread(target=self._run_httpd_thread)
+        self.httpd_thread.start()
+
+    def wait_for_exit(self):
         self.fault_thread.join()
-        self.log.info("Stopping trogdor agent")
+        self.httpd_thread.join()
 
     def get_faults_to_start(self, now):
         next_wakeup = now + 360000
         to_start = []
         for fault in fault_set_in_start_time_order(self.faults):
-            if fault.start_time_ms > now:
-                next_wakeup = fault.start_time_ms
+            if fault.start_ms > now:
+                next_wakeup = fault.getstart_time_ms()
                 break
-            if not fault.is_active():
+            if fault.is_pending():
                 to_start.append(fault)
         return to_start, next_wakeup
 
@@ -226,10 +233,10 @@ class Agent(object):
         next_wakeup = now + 360000
         to_end = []
         for fault in fault_set_in_end_time_order(self.faults):
-            if fault.end_time_ms > now:
-                next_wakeup = fault.end_time_ms
+            if fault.end_ms > now:
+                next_wakeup = fault.end_ms
                 break
-            if (fault.start_time_ms < now) or fault.is_active():
+            if fault.is_active():
                 to_end.append(fault)
         return to_end, next_wakeup
 
@@ -245,9 +252,19 @@ class Agent(object):
                     self.lock.release()
                 next_wakeup = min(next_wakeup, next_wakeup2)
                 for fault in to_start:
-                    fault.start()
+                    try:
+                        fault.start()
+                        if fault.end_ms < now:
+                            to_end.append(fault)
+                    except:
+                        self.log.warn("_run_fault_thread: failed to start fault %s: %s" %
+                                      (fault.name, traceback.format_exc()))
                 for fault in to_end:
-                    fault.end()
+                    try:
+                        fault.end()
+                    except:
+                        self.log.warn("_run_fault_thread: got exception when ending " +
+                                      "fault %s: %s" % (fault.name, traceback.format_exc()))
                 self.lock.acquire()
                 try:
                     if (self.closing):
@@ -264,6 +281,10 @@ class Agent(object):
             for fault in fault_set_in_start_time_order(self.faults):
                 if fault.is_active():
                     fault.end()
+
+    def _run_httpd_thread(self):
+        self.httpd.serve_forever()
+        self.log.info("Trogdor agent exiting")
 
     def shutdown(self):
         self.lock.acquire()
@@ -285,10 +306,11 @@ class Agent(object):
     def get_faults(self):
         def _fault_to_dict(fault):
             dict = {}
-            dict["active"] = fault.is_active()
-            dict["start_time_ms"] = fault.start_time_ms
-            dict["end_time_ms"] = fault.end_time_ms
-            dict["spec"] = fault.spec
+            dict["name"] = str(fault.name)
+            dict["spec"] = fault.spec.json_vars()
+            dict["status"] = {
+                "state": str(fault.state)
+            }
             return dict
 
         self.lock.acquire()
@@ -313,42 +335,14 @@ class Agent(object):
         return self._create_fault_from_dict(json.loads(text))
 
     def _create_fault_from_dict(self, dict):
-        def _pop_long(dict, key):
-            value = dict.get(key)
-            if value is None:
-                return None
-            del dict[key]
-            return long(value)
-
-        def _pop(dict, key):
-            value = dict.get(key)
-            if value is None:
-                return None
-            del dict[key]
-            return value
-
-        start_time_ms = _pop_long(dict, "start_time_ms")
-        if (start_time_ms == None):
-            start_time_ms_delta = _pop_long(dict, "start_time_ms_delta")
-            if (start_time_ms_delta == None):
-                raise RuntimeError("You must supply one of {start_time_ms, start_time_ms_delta}")
-            start_time_ms = util.get_wall_clock_ms() + start_time_ms_delta
-
-        end_time_ms =  _pop_long(dict, "end_time_ms")
-        if (end_time_ms == None):
-            duration_ms = _pop_long(dict, "duration_ms")
-            if (duration_ms == None):
-                raise RuntimeError("You must supply one of {end_time_ms, duration_ms}")
-            end_time_ms = start_time_ms + duration_ms
-
-        spec = _pop(dict, "spec")
-        if spec == None:
-            raise RuntimeError("No fault spec given.")
-
-        if len(dict) != 0:
-            raise RuntimeError("Unknown keys %s" % (dict.keys()))
-
-        return self.platform.create_fault(start_time_ms, end_time_ms, spec)
+        fault_name = dict.get("name")
+        if fault_name is None:
+            raise RuntimeError("You must supply a fault name.")
+        fault_spec_dict = dict.get("spec")
+        if fault_spec_dict is None:
+            raise RuntimeError("You must supply a fault spec.")
+        fault_spec = self.platform.create_fault_spec_from_dict(fault_spec_dict)
+        return self.platform.create_fault(fault_name, fault_spec)
 
 
 def main():
@@ -378,4 +372,5 @@ def main():
     platform.log.info("Launching trogdor agent %d with port %d" %
                       (os.getpid(), node.trogdor_agent_port))
     agent = Agent(platform, node.trogdor_agent_port)
-    agent.serve_forever()
+    agent.start()
+    agent.wait_for_exit()
