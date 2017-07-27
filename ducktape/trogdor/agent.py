@@ -225,7 +225,7 @@ class Agent(object):
         to_start = []
         for fault in fault_set_in_start_time_order(self.faults):
             if fault.start_ms > now:
-                next_wakeup = fault.getstart_time_ms()
+                next_wakeup = fault.start_ms
                 break
             if fault.is_pending():
                 to_start.append(fault)
@@ -272,7 +272,7 @@ class Agent(object):
                     if (self.closing):
                         return
                     delta = next_wakeup - now
-                    self.log.info("waiting for %d ms" % delta)
+                    self.log.trace("%s: waiting for %d ms" % (now, delta))
                     self.cond.wait(delta / 1000.0)
                 finally:
                     self.lock.release()

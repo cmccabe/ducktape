@@ -17,11 +17,12 @@ import os
 import random
 import tempfile
 
+from ducktape.platform.fault import fault_state
 from ducktape.platform.platform import create_platform
 from ducktape.trogdor.agent import Agent
 from ducktape.trogdor.client import get_agent_status, shutdown_agent, add_agent_fault, get_agent_faults
 from ducktape.utils import util
-from ducktape.utils.clock import WallClock
+from ducktape.utils.clock import WallClock, MockClock
 
 
 class AgentTestContext(object):
@@ -55,6 +56,13 @@ class AgentTestContext(object):
 
     def get_status(self):
         return get_agent_status(self.platform.log, "localhost", self.agent_port)
+
+    def get_agent_faults(self):
+        faults = get_agent_faults(self.platform.log, "localhost", self.agent_port)
+        rval = {}
+        for fault in faults:
+            rval[fault["name"]] = fault
+        return rval
 
     def _generate_config_file(self):
         dict = {
@@ -113,24 +121,56 @@ class CheckAgent(object):
             assert 0 == spec["start_ms"]
             assert 0 == spec["duration_ms"]
 
-#    def check_wait_for_faults_to_run(self):
-#        with AgentTestContext() as ctx:
-#            faults = get_agent_faults(ctx.platform.log, "localhost", ctx.agent_port)
-#            assert len(faults) == 0
-#            now = util.get_wall_clock_ms()
-#            request = {
-#                "name": "myfault",
-#                "spec": {
-#                    "kind": "NoOpFault",
-#                    "start_ms": 0,
-#                    "duration_ms": 0,
-#                }
-#            }
-#            add_agent_fault(ctx.platform.log, "localhost", ctx.agent_port, request)
-#            faults = get_agent_faults(ctx.platform.log, "localhost", ctx.agent_port)
-#            assert len(faults) == 1
-#            assert "myfault" == faults[0]["name"]
-#            spec = faults[0]["spec"]
-#            assert "NoOpFault" == spec["kind"]
-#            assert 0 == spec["start_ms"]
-#            assert 0 == spec["duration_ms"]
+    def check_wait_for_faults_to_run(self):
+        clock = MockClock(100)
+        with AgentTestContext(clock=clock) as ctx:
+            faults = ctx.get_agent_faults()
+            assert len(faults) == 0
+            requests = [
+                {
+                    "name": "myfault2",
+                    "spec": {
+                        "kind": "NoOpFault",
+                        "start_ms": 200,
+                        "duration_ms": 100,
+                    }
+                },
+                {
+                    "name": "myfault3",
+                    "spec": {
+                        "kind": "NoOpFault",
+                        "start_ms": 199,
+                        "duration_ms": 201,
+                    }
+                }
+            ]
+            for request in requests:
+                add_agent_fault(ctx.platform.log, "localhost", ctx.agent_port, request)
+            faults = ctx.get_agent_faults()
+            assert len(faults) == 2
+            assert faults["myfault2"]["spec"]["start_ms"] == 200
+            assert faults["myfault2"]["spec"]["duration_ms"] == 100
+            assert faults["myfault2"]["status"]["state"] == fault_state.PENDING
+            assert faults["myfault3"]["spec"]["start_ms"] == 199
+            assert faults["myfault3"]["spec"]["duration_ms"] == 201
+            assert faults["myfault3"]["status"]["state"] == fault_state.PENDING
+
+            clock.increment(99)
+            util.wait_until(lambda: ctx.get_agent_faults()["myfault3"]["status"]["state"] == fault_state.ACTIVE,
+                20, backoff_sec=.1, err_msg="Fault3 failed to activate.")
+            assert ctx.get_agent_faults()["myfault2"]["status"]["state"] == fault_state.PENDING
+
+            clock.increment(1)
+            util.wait_until(lambda: ctx.get_agent_faults()["myfault2"]["status"]["state"] == fault_state.ACTIVE,
+                20, backoff_sec=.1, err_msg="Fault2 failed to activate.")
+            assert ctx.get_agent_faults()["myfault2"]["status"]["state"] == fault_state.ACTIVE
+
+            clock.increment(100)
+            util.wait_until(lambda: ctx.get_agent_faults()["myfault2"]["status"]["state"] == fault_state.FINISHED,
+                20, backoff_sec=.1, err_msg="Fault2 failed to deactivate.")
+            assert ctx.get_agent_faults()["myfault3"]["status"]["state"] == fault_state.ACTIVE
+
+            clock.increment(100)
+            util.wait_until(lambda: ctx.get_agent_faults()["myfault3"]["status"]["state"] == fault_state.FINISHED,
+                            20, backoff_sec=.1, err_msg="Fault3 failed to deactivate.")
+            assert ctx.get_agent_faults()["myfault2"]["status"]["state"] == fault_state.FINISHED
