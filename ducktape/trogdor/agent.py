@@ -21,7 +21,7 @@ import sys
 import threading
 import traceback
 
-from ducktape.platform.fault.fault import Fault
+from ducktape.platform.fault.fault_set import FaultSet
 from ducktape.platform.platform import create_platform
 from ducktape.utils import util
 from ducktape.utils.clock import WallClock
@@ -138,55 +138,6 @@ class AgentHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                                 (self.command, self.path, traceback.format_exc()))
 
 
-class FaultSet(object):
-    def __init__(self):
-        self.faults_by_start_time = []
-        self.faults_by_end_time = []
-
-    def first_fault_to_start(self):
-        """
-        Return the first fault by start time order.
-        """
-        if len(self.faults_by_start_time) == 0:
-            return None
-        return self.faults_by_start_time[0]
-
-    def first_fault_to_end(self):
-        """
-        Return the first fault by end time order.
-        """
-        if len(self.faults_by_end_time) == 0:
-            return None
-        return self.faults_by_end_time[0]
-
-    def add_fault(self, fault):
-        self.faults_by_start_time.append(fault)
-        self.faults_by_end_time.append(fault)
-        self.faults_by_start_time = sorted(self.faults_by_start_time,
-                                           key=Fault.start_ms.__get__)
-        self.faults_by_end_time = sorted(self.faults_by_end_time,
-                                         key=Fault.end_ms.__get__)
-
-
-
-def fault_set_in_start_time_order(set):
-    """
-    A generator which returns the faults in a FaultSet by start time order.
-    """
-    faults_by_start_time = set.faults_by_start_time
-    for fault in faults_by_start_time:
-        yield fault
-
-
-def fault_set_in_end_time_order(set):
-    """
-    A generator which returns the faults in a FaultSet by end time order.
-    """
-    faults_by_end_time = set.faults_by_end_time
-    for fault in faults_by_end_time:
-        yield fault
-
-
 class Agent(object):
     def __init__(self, clock, platform, port):
         self.clock = clock
@@ -223,7 +174,7 @@ class Agent(object):
     def get_faults_to_start(self, now):
         next_wakeup = now + 360000
         to_start = []
-        for fault in fault_set_in_start_time_order(self.faults):
+        for fault in self.faults.by_start_time():
             if fault.start_ms > now:
                 next_wakeup = fault.start_ms
                 break
@@ -234,7 +185,7 @@ class Agent(object):
     def get_faults_to_end(self, now):
         next_wakeup = now + 360000
         to_end = []
-        for fault in fault_set_in_end_time_order(self.faults):
+        for fault in self.faults.by_end_time():
             if fault.end_ms > now:
                 next_wakeup = fault.end_ms
                 break
@@ -280,7 +231,7 @@ class Agent(object):
             self.log.warn("_run_fault_thread exiting with error %s" % traceback.format_exc())
         finally:
             self.httpd.shutdown()
-            for fault in fault_set_in_start_time_order(self.faults):
+            for fault in self.faults.by_start_time():
                 if fault.is_active():
                     fault.end()
 
@@ -318,7 +269,7 @@ class Agent(object):
         self.lock.acquire()
         try:
             out = []
-            for fault in fault_set_in_start_time_order(self.faults):
+            for fault in self.faults.by_start_time():
                 out.append(_fault_to_dict(fault))
         finally:
             self.lock.release()

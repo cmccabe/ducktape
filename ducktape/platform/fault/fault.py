@@ -74,6 +74,15 @@ class Fault(object):
         self.log.info("ending %s" % str(self))
         self._deactivate()
 
+    def target_nodes(self):
+        """
+        Return the nodes that the coordinator must send this fault to in order
+        to activate it.
+
+        :return:            A list of node names.
+        """
+        return []
+
     def _activate(self):
         """
         Activate the fault.  This must be implemented by concrete subclasses.
