@@ -22,7 +22,7 @@ from ducktape.basic_platform.basic_log import BasicLog
 
 class CheckBasicLog(object):
     def _generate_random_log_path(self):
-        return "%s%s%s%d" % (tempfile.tempdir, os.sep, "basic_log.", random.uniform(0, 10000000))
+        return "%s%s%s%d" % (tempfile.tempdir, os.sep, "basic_log.", random.uniform(0, 100000000))
 
     def _verify_log_contents(self, log_path, expected_levels, expected_messages):
         with open(log_path) as f:
