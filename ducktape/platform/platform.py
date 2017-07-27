@@ -25,8 +25,7 @@ def create_platform(config_path):
         data = json.load(fp)
     module_paths = data.get("modules")
     if module_paths is None:
-        #module_paths = [ "ducktape.platform.fault", "ducktape.basic_platform" ]
-        module_paths = [ "ducktape.basic_platform" ]
+        module_paths = [ "ducktape.platform.fault", "ducktape.basic_platform" ]
     loaders = [ Loader(module_path) for module_path in module_paths ]
     platform_module = data.get("platform")
     if platform_module == None:

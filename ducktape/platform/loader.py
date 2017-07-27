@@ -14,7 +14,7 @@
 
 import importlib
 import pkgutil
-from types import ModuleType, MethodType, FunctionType
+from types import ModuleType, MethodType, FunctionType, ClassType, TypeType
 
 
 class Loader(object):
@@ -42,14 +42,19 @@ class Loader(object):
 
         :return:            None if we could not find the class; the new object otherwise.
         """
-        for m in dir(self.package):
-            module = getattr(self.package, m)
-            if type(module) == ModuleType:
-                for c in dir(module):
-                    cls = getattr(module, c)
-                    if issubclass(cls, superclass):
-                        if cls.__name__ == class_name:
-                            return cls(**kwargs)
+        loader = pkgutil.get_loader(self.package_name)
+        print "WATERMELON2: package_name=%s, loader.filename=%s" % (self.package_name, loader.filename)
+        for module_loader, name, is_package in pkgutil.walk_packages([loader.filename]):
+            full_name = self.package_name + "." + name
+            module = importlib.import_module(full_name)
+            #print "WATERMELON3: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
+            if hasattr(module, class_name):
+                print "WATERMELON4: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
+                element = getattr(module, class_name)
+                print "WATERMELON5: type(element) = %s" % type(element)
+                if type(element) == TypeType:
+                    print "WATERMELON5: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
+                    return element(**kwargs)
         return None
 
     def invoke(self, module_name, function_name, **kwargs):
@@ -66,16 +71,17 @@ class Loader(object):
         loader = pkgutil.get_loader(self.package_name)
         print "WATERMELON2: package_name=%s, loader.filename=%s" % (self.package_name, loader.filename)
         for module_loader, name, is_package in pkgutil.walk_packages([loader.filename]):
-            full_name = self.package_name + "." + name
-            module = importlib.import_module(full_name)
-            #print "WATERMELON3: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
-            if hasattr(module, function_name):
-                print "WATERMELON4: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
-                element = getattr(module, function_name)
-                print "WATERMELON5: type(element) = %s" % type(element)
-                if type(element) == FunctionType:
-                    print "WATERMELON5: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
-                    return element(**kwargs)
+            if name == module_name:
+                full_name = self.package_name + "." + name
+                module = importlib.import_module(full_name)
+                #print "WATERMELON3: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
+                if hasattr(module, function_name):
+                    print "WATERMELON4: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
+                    element = getattr(module, function_name)
+                    print "WATERMELON5: type(element) = %s" % type(element)
+                    if type(element) == FunctionType:
+                        print "WATERMELON5: name=%s, self.package_name=%s, full_name=%s" % (name, self.package_name, full_name)
+                        return element(**kwargs)
         return None
 #            for element_name in dir(module):
 #                element = getattr(module, element_name)
