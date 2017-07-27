@@ -11,27 +11,27 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from ducktape.platform.loader import Loader
+from ducktape.platform.resolver import Resolver
 
 def append_abracadabra(prefix=""):
     return "%sabracadabra" % prefix
 
-class LoaderExampleBase(object):
+class ResolverExampleBase(object):
     def __init__(self):
         pass
 
-class LoaderExampleDerived(LoaderExampleBase):
+class ResolverExampleDerived(ResolverExampleBase):
     def __init__(self, foo):
-        super(LoaderExampleDerived, self).__init__()
+        super(ResolverExampleDerived, self).__init__()
         self.foo = foo
 
-class CheckLoader(object):
-    def check_loader_invoke(self):
-        loader = Loader("tests.platform")
-        result = loader.invoke("check_loader", "append_abracadabra", prefix="123")
+class CheckResolver(object):
+    def check_resolver_invoke(self):
+        resolver = Resolver("tests.platform")
+        result = resolver.invoke("check_resolver", "append_abracadabra", prefix="123")
         assert result == "123abracadabra"
 
-    def check_loader_create(self):
-        loader = Loader("tests.platform")
-        example = loader.create("LoaderExampleDerived", LoaderExampleBase, foo="foo")
+    def check_resolver_create(self):
+        resolver = Resolver("tests.platform")
+        example = resolver.create("ResolverExampleDerived", ResolverExampleBase, foo="foo")
         assert example.foo == "foo"

@@ -38,7 +38,7 @@ def _get_optional_str_list(dict, key):
     return rval
 
 
-def create_platform(config_path, loaders):
+def create_platform(config_path, resolvers):
     log = None
     success = False
     try:
@@ -65,7 +65,7 @@ def create_platform(config_path, loaders):
                                                 trogdor_coordinator_port, tags,
                                                 node_data["hostname"])
         topology = Topology(name_to_node)
-        platform = BasicPlatform(log, topology, loaders)
+        platform = BasicPlatform(log, topology, resolvers)
         success = True
         return platform
     finally:
@@ -81,11 +81,8 @@ class BasicPlatform(Platform):
     * we can ssh into nodes based on their names.
     * we can invoke iptables to create network partitions
     """
-    def __init__(self, log, topology, loaders):
+    def __init__(self, log, topology, resolvers):
         """
         Initialize the BasicPlatform object.
-
-        :param log:         A ducktape.platform.Log object.
-        :param nodes:       A map from strings to lists of ducktape.platform.Node objects.
         """
-        super(BasicPlatform, self).__init__("BasicPlatform", log, topology, loaders)
+        super(BasicPlatform, self).__init__("BasicPlatform", log, topology, resolvers)

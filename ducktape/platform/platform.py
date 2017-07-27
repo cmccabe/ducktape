@@ -15,7 +15,7 @@
 import json
 
 from ducktape.platform.fault.fault_spec import FaultSpec
-from ducktape.platform.loader import Loader
+from ducktape.platform.resolver import Resolver
 
 
 def create_platform(config_path):
@@ -25,33 +25,33 @@ def create_platform(config_path):
     module_paths = data.get("modules")
     if module_paths is None:
         module_paths = [ "ducktape.platform.fault", "ducktape.basic_platform" ]
-    loaders = [ Loader(module_path) for module_path in module_paths ]
+    resolvers = [ Resolver(module_path) for module_path in module_paths ]
     platform_module = data.get("platform")
     if platform_module == None:
         platform_module = "basic_platform"
-    for loader in loaders:
-        platform = loader.invoke(platform_module, "create_platform", config_path=config_path, loaders=loaders)
+    for resolver in resolvers:
+        platform = resolver.invoke(platform_module, "create_platform", config_path=config_path, resolvers=resolvers)
         if platform is not None:
             return platform
-    loader_packages = [ loader.package_name for loader in loaders ]
+    resolver_packages = [ resolver.package_name for resolver in resolvers ]
     raise RuntimeError("Failed to find platform type '%s' in %s" %
-                       (platform_module, ", ".join(loader_packages)))
+                       (platform_module, ", ".join(resolver_packages)))
 
 
 class Platform(object):
     """ The platform we are running on. """
-    def __init__(self, name, log, topology, loaders):
+    def __init__(self, name, log, topology, resolvers):
         """
         Initialize the platform object.
         :param name:        A string identifying the platform.
         :param log:         A platform.Log object.
         :param topology:    A platform.Topology object.
-        :param loaders:     A list of platform.Loader objects for loading classes.
+        :param resolvers:   A list of platform.Resolver objects for loading classes.
         """
         self.name = name
         self.log = log
         self.topology = topology
-        self.loaders = loaders
+        self.resolvers = resolvers
 
     def create_fault_spec_from_json(self, text):
         """
@@ -73,13 +73,13 @@ class Platform(object):
         if kind is None:
             raise RuntimeError("The fault specification does not include a 'kind'.")
         class_name = "%sSpec" % kind
-        for loader in self.loaders:
-            fault_spec = loader.create(class_name, FaultSpec, args=dict)
+        for resolver in self.resolvers:
+            fault_spec = resolver.create(class_name, FaultSpec, args=dict)
             if fault_spec is not None:
                 return fault_spec
-        loader_packages = [ loader.package_name for loader in self.loaders ]
+        resolver_packages = [ resolver.package_name for resolver in self.resolvers ]
         raise RuntimeError("Failed to resolve fault spec type '%s' in %s" %
-                           (class_name, ",".join(loader_packages)))
+                           (class_name, ",".join(resolver_packages)))
 
     def create_fault(self, name, spec):
         """
@@ -89,7 +89,7 @@ class Platform(object):
         :param spec:        The fault spec object.
         :return:            The new fault object.
         """
-        return spec.to_fault(name, self.log, self.loaders)
+        return spec.to_fault(name, self.log, self.resolvers)
 
     def __str__(self):
         return self.name

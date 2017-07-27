@@ -17,14 +17,14 @@ import pkgutil
 from types import FunctionType, TypeType
 
 
-class Loader(object):
+class Resolver(object):
     """
     Dynamically loads python objects from packages.
     """
 
     def __init__(self, package_name):
         """
-        Create a new Loader.
+        Create a new Resolver.
 
         :param module_path: The python package to attempt to load classes from.
         """
