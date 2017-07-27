@@ -74,15 +74,17 @@ class AgentHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     REST datatypes:
 
-    fault-spec: {
-            "kind": <fault-kind>,
-            "start_ms": <fault-start-time-in-ms>,
-            "duration_ms": <fault-duration-in-ms>,
-        }
+    fault-spec:
+            {
+              "kind": <fault-kind>,
+              "start_ms": <fault-start-time-in-ms>,
+              "duration_ms": <fault-duration-in-ms>,
+            }
 
-    fault-status: {
-            "state": "pending|active|finished"
-        }
+    fault-status:
+            {
+              "state": "pending|active|finished"
+            }
     """
     agent = None
 
