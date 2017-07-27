@@ -31,9 +31,9 @@ class FaultSpec(object):
         :param start_ms:            The start time in ms.
         :param duration_ms:         The duration in ms.
         """
-        self.kind = util.must_pop_str(args, "kind")
-        self.start_ms = util.must_pop_long(args, "start_ms")
-        self.duration_ms = util.must_pop_long(args, "duration_ms")
+        self.kind = str(util.must_pop(args, "kind"))
+        self.start_ms = long(util.must_pop(args, "start_ms"))
+        self.duration_ms = long(util.must_pop(args, "duration_ms"))
 
     @property
     def end_ms(self):
@@ -59,6 +59,13 @@ class FaultSpec(object):
         return copy.deepcopy(vars(self))
 
     def to_fault(self, name, log, loaders):
+        """
+        Create a new fault based on this fault spec.
+
+        :param name:                The name of the new fault.
+        :param log:                 The log object to use to create the new fault.
+        :param loaders:             ...
+        """
         for loader in loaders:
             platform = loader.create(self.kind, Fault, log=log, name=name, spec=self)
             if platform is not None:

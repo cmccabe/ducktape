@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from ducktape.utils.util import wait_until, parse_duration_string, get_wall_clock_ms, wall_clock_ms_to_str
+from ducktape.utils.util import wait_until, parse_duration_string, wall_clock_ms_to_str
 import time
 
 
@@ -41,11 +41,6 @@ class CheckUtils(object):
         assert 3610 == parse_duration_string("1h10s").total_seconds()
         assert 7439 == parse_duration_string("2h3m59s").total_seconds()
         assert 14 == parse_duration_string("14").total_seconds()
-
-    def check_get_wall_clock_ms(self):
-        ending_ms = starting_ms = get_wall_clock_ms()
-        while ending_ms <= starting_ms:
-            ending_ms = get_wall_clock_ms()
 
 #    def check_wall_clock_ms_to_str(self):
 #        wall_clock_ms = str_to_wall_clock_ms("2017-07-24T20:51:56+0000")

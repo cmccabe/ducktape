@@ -21,18 +21,20 @@ from ducktape.platform.platform import create_platform
 from ducktape.trogdor.agent import Agent
 from ducktape.trogdor.client import get_agent_status, shutdown_agent, add_agent_fault, get_agent_faults
 from ducktape.utils import util
+from ducktape.utils.clock import WallClock
 
 
 class AgentTestContext(object):
-    def __init__(self):
+    def __init__(self, clock):
         self.config_path = None
         self.agent = None
         self.agent_port = 8888
+        self.clock = clock
 
     def __enter__(self):
         self._generate_config_file()
         self.platform = create_platform(self.config_path)
-        self.agent = Agent(self.platform, self.agent_port)
+        self.agent = Agent(self.clock, self.platform, self.agent_port)
         self.agent.start()
         def can_get_status():
             while True:
@@ -80,18 +82,18 @@ def _must_have(dict, key):
 
 class CheckAgent(object):
     def check_get_agent_status(self):
-        with AgentTestContext() as ctx:
+        with AgentTestContext(clock=WallClock()) as ctx:
             status = ctx.get_status()
             _must_have(status, "started_time_ms")
             _must_have(status, "started_time_str")
 
     def check_agent_shutdown(self):
-        with AgentTestContext() as ctx:
+        with AgentTestContext(clock=WallClock()) as ctx:
             shutdown_agent(ctx.platform.log, "localhost", ctx.agent_port)
             ctx.agent.wait_for_exit()
 
     def check_add_retrieve_faults(self):
-        with AgentTestContext() as ctx:
+        with AgentTestContext(clock=WallClock()) as ctx:
             faults = get_agent_faults(ctx.platform.log, "localhost", ctx.agent_port)
             assert len(faults) == 0
             request = {
@@ -110,3 +112,25 @@ class CheckAgent(object):
             assert "NoOpFault" == spec["kind"]
             assert 0 == spec["start_ms"]
             assert 0 == spec["duration_ms"]
+
+#    def check_wait_for_faults_to_run(self):
+#        with AgentTestContext() as ctx:
+#            faults = get_agent_faults(ctx.platform.log, "localhost", ctx.agent_port)
+#            assert len(faults) == 0
+#            now = util.get_wall_clock_ms()
+#            request = {
+#                "name": "myfault",
+#                "spec": {
+#                    "kind": "NoOpFault",
+#                    "start_ms": 0,
+#                    "duration_ms": 0,
+#                }
+#            }
+#            add_agent_fault(ctx.platform.log, "localhost", ctx.agent_port, request)
+#            faults = get_agent_faults(ctx.platform.log, "localhost", ctx.agent_port)
+#            assert len(faults) == 1
+#            assert "myfault" == faults[0]["name"]
+#            spec = faults[0]["spec"]
+#            assert "NoOpFault" == spec["kind"]
+#            assert 0 == spec["start_ms"]
+#            assert 0 == spec["duration_ms"]

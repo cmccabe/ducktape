@@ -68,15 +68,6 @@ def check_port_number(port):
         raise RuntimeError("Invalid port %d" % port)
 
 
-def get_wall_clock_ms():
-    """
-    Get the wall-clock time in milliseconds.
-
-    :return:        A long representing the wall-clock time in milliseconds.
-    """
-    return long(floor(time.time() * 1000))
-
-
 LOCAL_TZ=tzlocal()
 
 
@@ -145,7 +136,15 @@ def parse_duration_string(str):
     return timedelta(**p)
 
 
-def must_pop_str(dict, key, error_msg=None):
+def must_pop(dict, key, error_msg=None):
+    """
+    Retrieve a key from a dictionary, and remove that key from the dictionary.
+
+    :param dict:            The dictionary.
+    :param key:             The key to fetch and remove.
+    :param error_msg:
+    :return:
+    """
     str = dict.get(key)
     if str is not None:
         del dict[key]
@@ -154,7 +153,3 @@ def must_pop_str(dict, key, error_msg=None):
         raise RuntimeError("Failed to find required key %s" % key)
     else:
         raise RuntimeError(error_msg)
-
-def must_pop_long(dict, key, error_msg=None):
-    val = must_pop_str(dict, key, error_msg)
-    return long(val)

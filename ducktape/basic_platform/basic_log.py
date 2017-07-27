@@ -22,6 +22,7 @@ import traceback
 
 from ducktape.platform.log import Log
 from ducktape.utils import util
+from ducktape.utils.clock import WallClock
 
 
 class BasicLog(Log):
@@ -35,6 +36,7 @@ class BasicLog(Log):
     """
     def __init__(self, file_name):
         super(BasicLog, self).__init__()
+        self.clock = WallClock()
         self.fp = open(file_name, 'a+')
         self.lock = threading.Lock()
         self.read_fd, self.write_fd = os.pipe()
@@ -49,7 +51,7 @@ class BasicLog(Log):
         self.prev_excepthook = sys.excepthook
 
     def log(self, level, msg):
-        datestr = util.wall_clock_ms_to_str(util.get_wall_clock_ms())
+        datestr = util.wall_clock_ms_to_str(self.clock.get())
         self.lock.acquire()
         try:
             self.fp.write("%-5s [%s]: %s\n" % (level, datestr, msg))

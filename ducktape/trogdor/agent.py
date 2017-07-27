@@ -24,6 +24,7 @@ import traceback
 from ducktape.platform.fault.fault import Fault
 from ducktape.platform.platform import create_platform
 from ducktape.utils import util
+from ducktape.utils.clock import WallClock
 from ducktape.utils.daemonize import daemonize
 
 
@@ -187,7 +188,8 @@ def fault_set_in_end_time_order(set):
 
 
 class Agent(object):
-    def __init__(self, platform, port):
+    def __init__(self, clock, platform, port):
+        self.clock = clock
         self.platform = platform
         self.log = platform.log
         self.port = port
@@ -204,7 +206,7 @@ class Agent(object):
 
     def start(self):
         """ Run the Trogdor agent. """
-        self.start_time_ms = util.get_wall_clock_ms()
+        self.start_time_ms = self.clock.get()
         AgentHttpHandler.agent = self
         self.httpd = BaseHTTPServer.HTTPServer(server_address=('', self.port),
                                                RequestHandlerClass=AgentHttpHandler)
@@ -243,7 +245,7 @@ class Agent(object):
     def _run_fault_thread(self):
         try:
             while True:
-                now = util.get_wall_clock_ms()
+                now = self.clock.get()
                 self.lock.acquire()
                 try:
                     to_start, next_wakeup = self.get_faults_to_start(now)
@@ -371,6 +373,6 @@ def main():
         raise RuntimeError("No agent_port specified for node %s" % name)
     platform.log.info("Launching trogdor agent %d with port %d" %
                       (os.getpid(), node.trogdor_agent_port))
-    agent = Agent(platform, node.trogdor_agent_port)
+    agent = Agent(WallClock(), platform, node.trogdor_agent_port)
     agent.start()
     agent.wait_for_exit()

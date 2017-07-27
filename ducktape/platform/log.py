@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from ducktape.utils import util
+from ducktape.utils.clock import WallClock
 
 
 class Log(object):
@@ -95,9 +96,10 @@ class StdoutLog(Log):
     """
     def __init__(self):
         super(StdoutLog, self).__init__()
+        self.clock = WallClock()
 
     def log(self, level, msg):
-        datestr = util.wall_clock_ms_to_str(util.get_wall_clock_ms())
+        datestr = util.wall_clock_ms_to_str(self.clock.get())
         print ("%-5s [%s]: %s" % (level, datestr, msg))
 
     def close(self):
