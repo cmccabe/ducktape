@@ -22,13 +22,14 @@ import threading
 import traceback
 
 from ducktape.platform.fault.fault_set import FaultSet
+from ducktape.platform.logged_http import LoggedHttpHandler
 from ducktape.platform.platform import create_platform
 from ducktape.utils import util
 from ducktape.utils.clock import WallClock
 from ducktape.utils.daemonize import daemonize
 
 
-class AgentHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+class AgentHttpHandler(LoggedHttpHandler):
     """
     The handler for HTTP requests to the Trogdor agent.
 
@@ -86,58 +87,26 @@ class AgentHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
               "state": "pending|active|finished"
             }
     """
-    agent = None
 
-    def do_HEAD(self):
-        self.do_GET()
+    def handle_get(self):
+        if self.path == "/status":
+            self.send_success_response(200, self.server.agent.get_status())
+        elif self.path == "/faults":
+            self.send_success_response(200, self.server.agent.get_faults())
+        else:
+            self.send_success_response(404, "Unknown path %s\n" % self.path)
 
-    def do_GET(self):
-        try:
-            if self.path == "/status":
-               self._send_success_response(200, self.agent.get_status())
-            elif self.path == "/faults":
-                self._send_success_response(200, self.agent.get_faults())
-            else:
-                self._send_success_response(404, "Unknown path %s\n" % self.path)
-        except Exception as e:
-            self._send_error_response(e)
-
-    def do_PUT(self):
-        try:
-            if self.path == "/shutdown":
-                self.agent.shutdown()
-                self._send_success_response(200, '{}\n')
-            elif self.path == "/faults":
-                text = self.rfile.read(int(self.headers.getheader('content-length', 0)))
-                self.agent.log.info("PUT /faults.  text='%s'" % text)
-                self.agent.add_fault_from_json(text)
-                self._send_success_response(200, '{}\n')
-            else:
-                self._send_success_response(404, "Unknown path %s\n" % self.path)
-        except Exception as e:
-            self._send_error_response(e)
-
-    def _send_success_response(self, status, str):
-        self.agent.log.trace("HTTP %s %s: status %d: %s" %
-                             (self.command, self.path, status, str.strip('\n')))
-        self._send_response(status, str)
-
-    def _send_error_response(self, e):
-        _, _, tb = sys.exc_info()
-        err = str(e) + "\n" + "".join(traceback.format_tb(tb))
-        self.agent.log.warn("HTTP %s %s: status %d: %s" % (self.command, self.path, 400, err))
-        values = { 'error': str(e) }
-        self._send_response(400, json.dumps(values))
-
-    def _send_response(self, status, str):
-        try:
-            self.send_response(status)
-            self.send_header("Content-type", "text/html")
-            self.end_headers()
-            self.wfile.write(str)
-        except Exception as e:
-            self.agent.log.warn("Error sending response to %s %s: %s" %
-                                (self.command, self.path, traceback.format_exc()))
+    def handle_put(self):
+        if self.path == "/shutdown":
+            self.server.agent.shutdown()
+            self.send_success_response(200, '{}\n')
+        elif self.path == "/faults":
+            text = self.rfile.read(int(self.headers.getheader('content-length', 0)))
+            self.server.agent.log.info("PUT /faults.  text='%s'" % text)
+            self.server.agent.add_fault_from_json(text)
+            self.send_success_response(200, '{}\n')
+        else:
+            self.send_success_response(404, "Unknown path %s\n" % self.path)
 
 
 class Agent(object):
@@ -163,6 +132,8 @@ class Agent(object):
         AgentHttpHandler.agent = self
         self.httpd = BaseHTTPServer.HTTPServer(server_address=('', self.port),
                                                RequestHandlerClass=AgentHttpHandler)
+        setattr(self.httpd, "log", self.platform.log)
+        setattr(self.httpd, "agent", self)
         self.log.info("Starting agent...")
         self.fault_thread = Thread(target=self._run_fault_thread)
         self.fault_thread.start()
@@ -233,6 +204,7 @@ class Agent(object):
             self.log.warn("_run_fault_thread exiting with error %s" % traceback.format_exc())
         finally:
             self.httpd.shutdown()
+            self.httpd.socket.close()
             for fault in self.faults.by_start_time():
                 if fault.is_active():
                     fault.end()
