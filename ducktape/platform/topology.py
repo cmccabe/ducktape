@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ducktape.utils import util
-
 
 class Node(object):
-    def __init__(self, name, trogdor_agent_port, trogdor_coordinator_port, tags):
+    """
+    Represents a node object in the cluster topology.
+    """
+    def __init__(self, name, hostname, trogdor_agent_port, trogdor_coordinator_port, tags):
         self.name = name
+        self.hostname = hostname
         self.trogdor_agent_port = trogdor_agent_port
         self.trogdor_coordinator_port = trogdor_coordinator_port
         self.tags = tags

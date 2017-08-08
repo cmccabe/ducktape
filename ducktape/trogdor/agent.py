@@ -129,12 +129,11 @@ class Agent(object):
     def start(self):
         """ Run the Trogdor agent. """
         self.start_time_ms = self.clock.get()
-        AgentHttpHandler.agent = self
         self.httpd = BaseHTTPServer.HTTPServer(server_address=('', self.port),
                                                RequestHandlerClass=AgentHttpHandler)
         setattr(self.httpd, "log", self.platform.log)
         setattr(self.httpd, "agent", self)
-        self.log.info("Starting agent...")
+        self.log.info("Starting trogdor agent...")
         self.fault_thread = Thread(target=self._run_fault_thread)
         self.fault_thread.start()
         self.httpd_thread = Thread(target=self._run_httpd_thread)
@@ -218,7 +217,7 @@ class Agent(object):
         try:
             if (self.closing == True):
                 return
-            self.log.info("Shutting down %d by request." % os.getpid())
+            self.log.info("Shutting down trogdor agent %d by request." % os.getpid())
             self.closing = True
             self.cond.notify_all()
         finally:

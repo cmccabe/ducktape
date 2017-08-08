@@ -40,6 +40,9 @@ def parse_hostport(hostport):
     return host, int(port_str)
 
 
+REQUEST_TIMEOUT=5
+
+
 def get_agent_status(log, hostname, port):
     """
     Get the status of the agent.
@@ -50,7 +53,7 @@ def get_agent_status(log, hostname, port):
     """
     url = "http://%s:%d/status" % (hostname, port)
     log.trace("GET %s" % url)
-    response = requests.get(url)
+    response = requests.get(url, timeout=REQUEST_TIMEOUT)
     response.raise_for_status()
     return response.json()
 
@@ -65,7 +68,7 @@ def get_agent_faults(log, hostname, port):
     """
     url = "http://%s:%d/faults" % (hostname, port)
     log.trace("GET %s" % url)
-    response = requests.get(url)
+    response = requests.get(url, timeout=REQUEST_TIMEOUT)
     response.raise_for_status()
     return response.json()
 
@@ -82,7 +85,7 @@ def add_agent_fault(log, hostname, port, request):
     url = "http://%s:%d/faults" % (hostname, port)
     request_json = json.dumps(request)
     log.trace("PUT %s %s" % (url, request_json))
-    response = requests.put(url, data=request_json)
+    response = requests.put(url, data=request_json, timeout=REQUEST_TIMEOUT)
     response.raise_for_status()
     return response.json()
 
@@ -97,7 +100,7 @@ def shutdown_agent(log, hostname, port):
     :return:                    An empty object on success.
     """
     url = "http://%s:%d/shutdown" % (hostname, port)
-    response = requests.put(url)
+    response = requests.put(url, timeout=REQUEST_TIMEOUT)
     log.trace("PUT %s" % url)
     response.raise_for_status()
     return response.json()

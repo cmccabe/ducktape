@@ -16,6 +16,5 @@ from ducktape.platform.topology import Node
 
 
 class BasicNode(Node):
-    def __init__(self, name, trogdor_agent_port, trogdor_coordinator_port, tags, hostname):
-        super(BasicNode, self).__init__(name, trogdor_agent_port, trogdor_coordinator_port, tags)
-        self.hostname = hostname
+    def __init__(self, name, hostname, trogdor_agent_port, trogdor_coordinator_port, tags):
+        super(BasicNode, self).__init__(name, hostname, trogdor_agent_port, trogdor_coordinator_port, tags)
