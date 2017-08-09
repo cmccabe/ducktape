@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ducktape.cluster.cluster import Cluster
+from ducktape.cluster.cluster import Cluster, ClusterNode
 from ducktape.tests.session import SessionContext
 from ducktape.tests.test import TestContext
 from ducktape.cluster.remoteaccount import RemoteAccount, RemoteAccountSSHConfig
@@ -68,10 +68,10 @@ def test_context(session_context=session_context(), cluster=mock_cluster()):
     return TestContext(session_context=session_context, file="a/b/c", cluster=cluster)
 
 
-class MockNode(object):
+class MockNode(ClusterNode):
     """Mock cluster node"""
-    def __init__(self):
-        self.account = MockAccount()
+    def __init__(self, name):
+        super(MockNode, self).__init__(name, MockAccount())
 
 
 class MockAccount(RemoteAccount):

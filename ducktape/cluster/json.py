@@ -15,7 +15,7 @@
 from __future__ import absolute_import
 
 from ducktape.command_line.defaults import ConsoleDefaults
-from .cluster import Cluster, ClusterSlot
+from .cluster import Cluster, ClusterNode
 from .remoteaccount import RemoteAccount, RemoteAccountSSHConfig
 
 import collections
@@ -97,39 +97,40 @@ class JsonCluster(Cluster):
             msg = "JSON cluster definition invalid: %s: %s" % (e, traceback.format_exc(limit=16))
             raise ValueError(msg)
 
-        self.available_nodes = collections.deque(node_accounts)
-        self.in_use_nodes = set()
+        self.node_accounts = collections.deque(node_accounts)
+        self.in_use_accounts = set()
         self._id_supplier = 0
 
     def __len__(self):
-        return len(self.available_nodes) + len(self.in_use_nodes)
+        return len(self.node_accounts) + len(self.in_use_accounts)
 
     def num_available_nodes(self):
-        return len(self.available_nodes)
+        return len(self.node_accounts)
 
     def alloc(self, num_nodes):
         if num_nodes > self.num_available_nodes():
             err_msg = "There aren't enough available nodes to satisfy the resource request. " \
                 "Total cluster size: %d, Requested: %d, Already allocated: %d, Available: %d. " % \
-                      (len(self), num_nodes, len(self.in_use_nodes), self.num_available_nodes())
+                      (len(self), num_nodes, len(self.in_use_accounts), self.num_available_nodes())
             err_msg += "Make sure your cluster has enough nodes to run your test or service(s)."
             raise RuntimeError(err_msg)
 
         result = []
         for i in range(num_nodes):
-            node = self.available_nodes.popleft()
-            cluster_slot = ClusterSlot(node, slot_id=self._id_supplier)
-            result.append(cluster_slot)
-            self.in_use_nodes.add(node)
+            account = self.node_accounts.popleft()
+            name = "node%02d" % self._id_supplier
+            cluster_node = ClusterNode(account.hostname, account)
+            result.append(cluster_node)
+            self.in_use_accounts.add(account)
             self._id_supplier += 1
 
         return result
 
     def free_single(self, slot):
-        assert(slot.account in self.in_use_nodes)
+        assert(slot.account in self.in_use_accounts)
         slot.account.close()
-        self.in_use_nodes.remove(slot.account)
-        self.available_nodes.append(slot.account)
+        self.in_use_accounts.remove(slot.account)
+        self.node_accounts.append(slot.account)
 
     def _externally_routable_ip(self, account):
         return None

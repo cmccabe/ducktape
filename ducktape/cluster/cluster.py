@@ -15,11 +15,30 @@
 import collections
 
 
-class ClusterSlot(object):
-    def __init__(self, account, **kwargs):
+class ClusterNode(object):
+    """
+    Represents a node in a Ducktape cluster.
+
+    Nodes have names, which may or may not be the same as their hostnames and account
+    objects which can be used to contact them.
+    """
+    def __init__(self, name, account):
+        """
+        Create a new ClusterNode
+
+        :param name:            A string which uniquely identifies this node.
+        :param account:         The account to use for this node.
+        """
+        self.name = name
         self.account = account
-        for k, v in kwargs.items():
-            setattr(self, k, v)
+
+    @property
+    def logger(self):
+        return self.account.logger
+
+    @property
+    def hostname(self):
+        return self.account.hostname
 
 
 class Cluster(object):
@@ -35,7 +54,10 @@ class Cluster(object):
         raise NotImplementedError()
 
     def alloc(self, num_nodes):
-        """Try to allocate the specified number of nodes, which will be reserved until they are freed by the caller."""
+        """Try to allocate the specified number of ClusterNode objects.
+
+        :param num_nodes:       The number of nodes to allocate.
+        """
         raise NotImplementedError()
 
     def request(self, num_nodes):

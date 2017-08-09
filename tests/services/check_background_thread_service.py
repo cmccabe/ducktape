@@ -33,7 +33,7 @@ class DummyService(BackgroundThreadService):
         return 1
 
     def allocate_nodes(self):
-        self.nodes = [MockNode()]
+        self.nodes = [MockNode("node01")]
 
     def _worker(self, idx, node):
         self.running = True

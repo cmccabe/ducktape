@@ -106,7 +106,7 @@ class CheckVagrantCluster(object):
                     "port": node_account.ssh_config.port
                 }
             }
-            for node_account in cluster.available_nodes
+            for node_account in cluster.node_accounts
         ]
 
         cluster_json_expected["nodes"] = nodes

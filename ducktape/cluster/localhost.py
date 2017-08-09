@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .cluster import Cluster, ClusterSlot
+from .cluster import Cluster, ClusterNode
 from .remoteaccount import RemoteAccount, RemoteAccountSSHConfig
 import sys
 
@@ -39,11 +39,9 @@ class LocalhostCluster(Cluster):
 
         allocated_nodes = []
         for _ in range(num_nodes):
-            ssh_config = RemoteAccountSSHConfig(
-                "localhost%d" % self._id_supplier,
-                hostname="localhost",
-                port=22)
-            allocated_nodes.append(ClusterSlot(RemoteAccount(ssh_config), slot_id=self._id_supplier))
+            name = "localhost%d" % self._id_supplier
+            ssh_config = RemoteAccountSSHConfig(name, hostname="localhost", port=22)
+            allocated_nodes.append(ClusterNode(name, RemoteAccount(ssh_config)))
             self._id_supplier += 1
         return allocated_nodes
 

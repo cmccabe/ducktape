@@ -57,7 +57,8 @@ class Service(TemplateRenderer):
         :param num_nodes  Number of nodes to allocate to this service from the cluster. Node allocation takes place
                           when start() is called, or when allocate_nodes() is called, whichever happens first.
         """
-        super(Service, self).__init__(*args, **kwargs)
+        super(Service, self).__init__()
+
         # Keep track of significant events in the lifetime of this service
         self._init_time = time.time()
         self._start_time = -1
@@ -70,12 +71,18 @@ class Service(TemplateRenderer):
         self.num_nodes = num_nodes
         self.context = context
 
-        self.nodes = []
-        self.allocate_nodes()
+        # If a manual node assignment was specified, we will use that for this service.
+        # Otherwise, we will allocate nodes from the cluster.
+        nodes = kwargs.get("nodes")
+        if nodes is None:
+            self.nodes = []
+            self.allocate_nodes()
+        else:
+            self.nodes = nodes
 
         # Keep track of which nodes nodes were allocated to this service, even after nodes are freed
         # Note: only keep references to representations of the nodes, not the actual node objects themselves
-        self._nodes_formerly_allocated = [str(node.account) for node in self.nodes]
+        self._nodes_formerly_allocated = [str(node.name) for node in self.nodes]
 
         # Every time a service instance is created, it registers itself with its
         # context object. This makes it possible for external mechanisms to clean up
@@ -90,7 +97,7 @@ class Service(TemplateRenderer):
 
     def __repr__(self):
         return "<%s: %s>" % (self.who_am_i(), "num_nodes: %d, nodes: %s" %
-                             (self.num_nodes, [n.account.hostname for n in self.nodes]))
+                             (self.num_nodes, [n.name for n in self.nodes]))
 
     @property
     def local_scratch_dir(self):
@@ -153,7 +160,7 @@ class Service(TemplateRenderer):
         if node is None:
             return self.service_id
         else:
-            return "%s node %d on %s" % (self.service_id, self.idx(node), node.account.hostname)
+            return "%s node %d on %s" % (self.service_id, self.idx(node), node.name)
 
     def allocate_nodes(self):
         """Request resources from the cluster."""
@@ -339,3 +346,4 @@ class Service(TemplateRenderer):
             "service_id": self.service_id,
             "nodes": self._nodes_formerly_allocated
         }
+
