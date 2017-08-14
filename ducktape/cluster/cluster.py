@@ -23,6 +23,10 @@ class ClusterSlot(object):
             setattr(self, k, v)
 
     @property
+    def name(self):
+        return self.account.hostname
+
+    @property
     def operating_system(self):
         return self.account.operating_system
 
