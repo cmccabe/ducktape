@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from ducktape.cluster.cluster_spec import ClusterSpec
 from ducktape.tests.test import Test
 from ducktape.mark import ignore, parametrize
-from ducktape.cluster.remoteaccount import RemoteAccount
 
 
 class TestThingy(Test):
     """Fake ducktape test class"""
 
-    def min_cluster_size(self):
+    def min_cluster_spec(self):
         """ This test uses many nodes, wow!"""
-        return {RemoteAccount.LINUX: 1000}
+        return ClusterSpec.simple_linux(1000)
 
     def test_pi(self):
         return {"data": 3.14159}

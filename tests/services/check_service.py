@@ -53,10 +53,10 @@ class CheckAllocateFree(object):
         # Node allocation takes place during service instantiation
         initial_cluster_size = len(self.cluster)
         self.service = DummyService(self.context, 10)
-        assert self.cluster.num_available_nodes() == initial_cluster_size - 10
+        assert self.cluster.available().size() == initial_cluster_size - 10
 
         self.service.free()
-        assert self.cluster.num_available_nodes() == initial_cluster_size
+        assert self.cluster.available().size() == initial_cluster_size
 
     def check_order(self):
         """Check expected behavior with service._order method"""

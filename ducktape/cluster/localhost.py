@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .cluster import Cluster, ClusterSlot
+from ducktape.cluster.cluster_spec import ClusterSpec
+from ducktape.cluster.node_container import NodeContainer
+from .cluster import Cluster, ClusterNode
 from .linux_remoteaccount import LinuxRemoteAccount
 from .remoteaccount import RemoteAccountSSHConfig
-from .remoteaccount import RemoteAccount
-import sys
 
 
 class LocalhostCluster(Cluster):
@@ -27,35 +27,25 @@ class LocalhostCluster(Cluster):
     """
 
     def __init__(self, *args, **kwargs):
-        # Use a very large number, but fixed value so accounting for # of available nodes works
-        self._size = kwargs.get("num_nodes", sys.maxint)
-        self._available = self._size
-        self._in_use_nodes = []
-        self._id_supplier = 0
+        num_nodes = kwargs.get("num_nodes", 1000)
+        self._available_nodes = NodeContainer()
+        for i in range(num_nodes):
+            ssh_config = RemoteAccountSSHConfig("localhost%d" % i, hostname="localhost", port=22)
+            self._available_nodes.add_node(ClusterNode(LinuxRemoteAccount(ssh_config)))
+        self._in_use_nodes = NodeContainer()
 
-    def __len__(self):
-        return self._size
+    def alloc_spec(self, cluster_spec):
+        allocated = self._available_nodes.remove_spec(cluster_spec)
+        self._in_use_nodes.add_nodes(allocated)
+        return allocated
 
-    def alloc(self, node_spec):
-        # first check that nodes are available. Assume Linux.
-        assert self._available >= node_spec[RemoteAccount.LINUX]
-        self._available -= node_spec[RemoteAccount.LINUX]
+    def free_single(self, node):
+        self._in_use_nodes.remove_node(node)
+        self._available_nodes.add_node(node)
+        node.account.close()
 
-        allocated_nodes = []
-        # assume Linux.
-        for _ in range(node_spec[RemoteAccount.LINUX]):
-            ssh_config = RemoteAccountSSHConfig(
-                "localhost%d" % self._id_supplier,
-                hostname="localhost",
-                port=22)
-            allocated_nodes.append(ClusterSlot(LinuxRemoteAccount(ssh_config), slot_id=self._id_supplier))
-            self._id_supplier += 1
-        return allocated_nodes
+    def available(self):
+        return ClusterSpec.from_nodes(self._available_nodes)
 
-    def num_available_nodes(self, operating_system=RemoteAccount.LINUX):
-        return self._available
-
-    def free_single(self, slot):
-        assert self._available + 1 <= self._size
-        slot.account.close()
-        self._available += 1
+    def used(self):
+        return ClusterSpec.from_nodes(self._in_use_nodes)
